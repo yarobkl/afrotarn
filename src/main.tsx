@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './styles.css'
 import './stability.css'
+import './payment-flow.css'
 import './error.css'
 
 type ErrorBoundaryState = { hasError: boolean }
