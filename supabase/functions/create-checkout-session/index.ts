@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
       return json(req, { error: 'One or more products are not yet available for online payment', product_id: id }, 409)
     }
     if (product.currency !== 'EUR') return json(req, { error: 'Unsupported currency' }, 409)
-    if (product.stock_mode === 'tracked' && product.stock_quantity != null && product.stock_quantity - product.safety_stock < qty) {
+    if (product.stock_mode === 'tracked' && (product.stock_quantity == null || product.stock_quantity < qty)) {
       return json(req, { error: `${product.name} is no longer available in the requested quantity`, product_id: id }, 409)
     }
     lines.push({ id, name: product.name, quantity: qty, price_cents: product.price_cents })
