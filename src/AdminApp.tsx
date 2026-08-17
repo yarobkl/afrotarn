@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BadgeCheck, Clock3, LogOut, PackageCheck, RefreshCw, ShoppingBag, Store } from 'lucide-react'
 import './admin-orders.css'
+import './admin-access.css'
 
 type OrderStatus = 'pending_payment' | 'paid' | 'preparing' | 'ready' | 'collected' | 'cancelled' | 'refunded'
 
@@ -28,6 +29,7 @@ type Order = {
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://whgnczmorqmhwdvmgtwt.supabase.co'
 const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndoZ25jem1vcnFtaHdkdm1ndHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5OTE3MTYsImV4cCI6MjEwMjU2NzcxNn0.GenTCUGdLzxiyW9TtI8740WsmIg9_TUy1x0j6itPAdI'
+const ESTELLE_EMAIL = 'afrotarn@gmail.com'
 const configured = Boolean(SUPABASE_URL && SUPABASE_KEY)
 
 function money(cents: number) {
@@ -59,12 +61,14 @@ function apiHeaders(token?: string) {
 
 export default function AdminApp() {
   const [token, setToken] = useState(() => sessionStorage.getItem('afrotarn-admin-token') || '')
+  const [accessMode, setAccessMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   const selected = useMemo(() => orders.find(order => order.id === selectedId) || orders[0] || null, [orders, selectedId])
   const activeCount = orders.filter(order => ['paid', 'preparing'].includes(order.status)).length
@@ -75,6 +79,7 @@ export default function AdminApp() {
     if (!configured) return
     setLoading(true)
     setError('')
+    setNotice('')
     try {
       const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
@@ -88,6 +93,40 @@ export default function AdminApp() {
       setPassword('')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Connexion impossible')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function signup(event: React.FormEvent) {
+    event.preventDefault()
+    if (!configured) return
+    setLoading(true)
+    setError('')
+    setNotice('')
+    try {
+      if (email.trim().toLowerCase() !== ESTELLE_EMAIL) {
+        throw new Error(`La première création d’accès est réservée à ${ESTELLE_EMAIL}.`)
+      }
+      if (password.length < 10) throw new Error('Choisissez un mot de passe d’au moins 10 caractères.')
+
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          data: { full_name: 'Estelle', source: 'afrotarn-admin' },
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.msg || data?.error_description || 'Création du compte impossible')
+
+      setPassword('')
+      setAccessMode('login')
+      setNotice('Compte créé. Vérifiez l’e-mail de la boutique si Supabase demande une confirmation. Les droits administrateur doivent ensuite être validés une seule fois.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Création du compte impossible')
     } finally {
       setLoading(false)
     }
@@ -158,15 +197,19 @@ export default function AdminApp() {
   if (!token) {
     return (
       <main className="admin-shell admin-login">
-        <form className="admin-login-card" onSubmit={login}>
+        <form className="admin-login-card" onSubmit={accessMode === 'login' ? login : signup}>
           <span className="admin-brand"><Store size={24} /> AFROTARN</span>
           <small>ESPACE ESTELLE · COMMANDES</small>
-          <h1>Connexion</h1>
-          <p>Accès réservé à la préparation et au suivi des commandes AfroTarn.</p>
-          <label>Adresse e-mail<input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" /></label>
-          <label>Mot de passe<input type="password" value={password} onChange={event => setPassword(event.target.value)} required autoComplete="current-password" /></label>
+          <h1>{accessMode === 'login' ? 'Connexion' : 'Créer mon accès'}</h1>
+          <p>{accessMode === 'login' ? 'Accès réservé à la préparation et au suivi des commandes AfroTarn.' : 'Première mise en service de l’espace commandes. Utilisez l’adresse officielle de la boutique.'}</p>
+          <label>Adresse e-mail<input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" placeholder={ESTELLE_EMAIL} /></label>
+          <label>Mot de passe<input type="password" value={password} onChange={event => setPassword(event.target.value)} required minLength={accessMode === 'signup' ? 10 : undefined} autoComplete={accessMode === 'signup' ? 'new-password' : 'current-password'} /></label>
+          {notice && <div className="admin-notice">{notice}</div>}
           {error && <div className="admin-error">{error}</div>}
-          <button disabled={loading}>{loading ? 'Connexion…' : 'Se connecter'}</button>
+          <button disabled={loading}>{loading ? 'Patientez…' : accessMode === 'login' ? 'Se connecter' : 'Créer l’accès Estelle'}</button>
+          <button className="admin-access-switch" type="button" onClick={() => { setAccessMode(mode => mode === 'login' ? 'signup' : 'login'); setError(''); setNotice(''); setPassword(''); if (!email) setEmail(ESTELLE_EMAIL) }}>
+            {accessMode === 'login' ? 'Première connexion ? Créer l’accès' : 'J’ai déjà un accès'}
+          </button>
           <a href="/">Retour à la boutique</a>
         </form>
       </main>
