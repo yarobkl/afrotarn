@@ -1,0 +1,59 @@
+/* AfroTarn promotions — storefront + admin */
+
+.commerce-v2-product.is-promo .product-visual{position:relative}
+.commerce-v2-product.is-promo .product-visual::before{
+  content:attr(data-promo-label);
+  position:absolute;z-index:3;right:12px;top:12px;
+  min-height:29px;padding:0 11px;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:#b84b36;color:#fff;border:1px solid rgba(255,255,255,.38);
+  box-shadow:0 7px 18px rgba(91,30,22,.18);
+  font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+  animation:afrotarnPromoPulse 1.9s ease-in-out infinite;
+}
+
+.promo-price-row{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-top:5px}
+.promo-old-price{color:#8b8d87;font-size:14px;font-weight:700;text-decoration:line-through;text-decoration-thickness:1.5px;text-decoration-color:#b84b36}
+.promo-current-price{color:#b23f2f;font-family:Georgia,serif;font-size:22px;font-weight:700;line-height:1;animation:afrotarnPromoPrice 1.9s ease-in-out infinite}
+.promo-price-row.sheet{margin:4px 0 7px}
+.promo-price-row.sheet .promo-old-price{font-size:16px}
+.promo-price-row.sheet .promo-current-price{font-size:27px}
+.promo-flag-only{display:inline-flex;align-items:center;gap:6px;margin-top:7px;padding:5px 8px;border-radius:999px;background:#f5e1da;color:#983726;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+
+@keyframes afrotarnPromoPulse{0%,100%{transform:scale(1);box-shadow:0 7px 18px rgba(91,30,22,.16)}50%{transform:scale(1.045);box-shadow:0 9px 24px rgba(91,30,22,.25)}}
+@keyframes afrotarnPromoPrice{0%,100%{opacity:1}50%{opacity:.72}}
+
+.admin-promo-launcher{
+  position:fixed;z-index:230;right:18px;bottom:18px;
+  min-height:46px;padding:0 15px;border:0;border-radius:999px;
+  display:flex;align-items:center;gap:8px;background:#b84b36;color:#fff;
+  box-shadow:0 15px 35px rgba(100,38,28,.25);font-weight:800;cursor:pointer
+}
+.admin-promo-backdrop{position:fixed;z-index:500;inset:0;background:rgba(11,25,19,.45);display:flex;justify-content:flex-end}
+.admin-promo-drawer{width:min(560px,100%);height:100dvh;overflow:auto;background:#f8f4ed;color:#17251f;padding:22px;box-shadow:-20px 0 60px rgba(0,0,0,.16)}
+.admin-promo-drawer>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid #ddd4c8}
+.admin-promo-drawer>header small{font-size:9px;font-weight:800;letter-spacing:.14em;color:#b84b36}
+.admin-promo-drawer>header h2{font-family:Georgia,serif;font-size:38px;font-weight:400;margin:4px 0 6px}
+.admin-promo-drawer>header p{margin:0;color:#6b766f;font-size:12px;line-height:1.55}
+.admin-promo-drawer>header button{width:40px;height:40px;border:1px solid #d8cfc4;border-radius:50%;background:#fff;display:grid;place-items:center;cursor:pointer}
+.admin-promo-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;margin:18px 0}
+.admin-promo-tools input{min-width:0;height:44px;border:1px solid #d8cfc4;border-radius:13px;background:#fff;padding:0 13px;font-size:13px}
+.admin-promo-tools button{height:44px;border:0;border-radius:13px;background:#123c2d;color:#fff;padding:0 14px;display:flex;align-items:center;gap:7px;font-weight:800;cursor:pointer}
+.admin-promo-message{margin-bottom:13px;padding:11px 13px;border-radius:12px;background:#fff3d9;color:#745312;font-size:12px;line-height:1.45}
+.admin-promo-list{display:grid;gap:12px;padding-bottom:90px}
+.admin-promo-item{border:1px solid #ded5ca;border-radius:18px;background:#fff;padding:15px;transition:border-color .2s ease,box-shadow .2s ease}
+.admin-promo-item.is-active{border-color:rgba(184,75,54,.38);box-shadow:0 9px 24px rgba(92,44,34,.07)}
+.admin-promo-item-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.admin-promo-item-head>div{display:grid;gap:2px}.admin-promo-item-head strong{font-size:14px}.admin-promo-item-head span{font-size:10px;color:#7a837d}
+.admin-promo-toggle{position:relative;width:46px;height:26px;display:block;flex:0 0 auto}.admin-promo-toggle input{position:absolute;opacity:0;pointer-events:none}.admin-promo-toggle>span{position:absolute;inset:0;border-radius:999px;background:#d9d7d1;cursor:pointer;transition:background .2s ease}.admin-promo-toggle>span::after{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 2px 7px rgba(0,0,0,.16);transition:transform .2s ease}.admin-promo-toggle input:checked+span{background:#b84b36}.admin-promo-toggle input:checked+span::after{transform:translateX(20px)}
+.admin-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.admin-promo-grid label{display:grid;gap:5px}.admin-promo-grid label>span{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#737c76}.admin-promo-grid label>div{display:flex;align-items:center;border:1px solid #ded5ca;border-radius:12px;background:#faf8f4;overflow:hidden}.admin-promo-grid label>div input{width:100%;min-width:0;height:42px;border:0;background:transparent;padding:0 10px}.admin-promo-grid label>div b{padding-right:10px}.admin-promo-label{grid-column:1/-1}.admin-promo-label>input{height:42px;border:1px solid #ded5ca;border-radius:12px;background:#faf8f4;padding:0 10px}
+.admin-promo-save{margin-top:12px;min-height:42px;padding:0 13px;border:0;border-radius:12px;background:#123c2d;color:#fff;display:inline-flex;align-items:center;gap:7px;font-weight:800;cursor:pointer}.admin-promo-save:disabled,.admin-promo-tools button:disabled{opacity:.55;cursor:not-allowed}
+
+@media(max-width:620px){
+  .commerce-v2-product.is-promo .product-visual::before{right:8px;top:8px;min-height:25px;padding:0 8px;font-size:8px}
+  .promo-current-price{font-size:20px}.promo-old-price{font-size:12px}
+  .admin-promo-launcher{right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));min-height:42px;padding:0 12px}
+  .admin-promo-drawer{padding:16px}.admin-promo-drawer>header h2{font-size:34px}.admin-promo-tools{grid-template-columns:1fr}.admin-promo-grid{grid-template-columns:1fr}.admin-promo-label{grid-column:auto}
+}
+
+@media(prefers-reduced-motion:reduce){.commerce-v2-product.is-promo .product-visual::before,.promo-current-price{animation:none!important}}
