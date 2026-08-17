@@ -1,7 +1,7 @@
 {
   "name": "afrotarn",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "framer-motion": "^12.23.12",
     "lucide-react": "^0.468.0",
     "react": "latest",
     "react-dom": "latest",
