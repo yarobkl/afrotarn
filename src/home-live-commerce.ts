@@ -46,17 +46,27 @@ function decorateCartButton(card: Element) {
 
 function removeExistingPromo(card: Element) {
   card.classList.remove('commerce-v2-product', 'is-promo')
-  const visual = card.querySelector<HTMLElement>('.product-visual')
-  visual?.removeAttribute('data-promo-label')
+  card.querySelector<HTMLElement>('.product-visual')?.removeAttribute('data-promo-label')
   card.querySelectorAll('.home-live-price').forEach(node => node.remove())
 }
 
 function decorateCard(card: Element) {
   const name = card.querySelector('.product-title h3')?.textContent
   if (!name) return
-  const product = liveByName.get(key(name))
   decorateCartButton(card)
+
+  const product = liveByName.get(key(name))
   if (!product) return
+
+  const signature = JSON.stringify([
+    product.price_cents,
+    product.promotion_active,
+    product.promo_price_cents,
+    product.promo_label || 'PROMO',
+  ])
+  const cardElement = card as HTMLElement
+  if (cardElement.dataset.liveCommerceSignature === signature) return
+  cardElement.dataset.liveCommerceSignature = signature
 
   removeExistingPromo(card)
   const body = card.querySelector('.product-body')
