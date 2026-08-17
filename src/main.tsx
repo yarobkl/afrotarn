@@ -40,6 +40,20 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
   }
 }
 
+// Editorial imagery is currently loaded from public remote sources. If a host
+// becomes unavailable, preserve the card geometry and replace the broken image
+// with a branded background rather than exposing a browser error icon.
+window.addEventListener('error', event => {
+  const target = event.target
+  if (!(target instanceof HTMLImageElement)) return
+  target.style.opacity = '0'
+  target.style.visibility = 'hidden'
+  const parent = target.parentElement
+  if (parent) {
+    parent.style.background = 'radial-gradient(circle at 78% 18%, rgba(217,165,90,.42), transparent 34%), linear-gradient(135deg, #173c2d, #8b4032)'
+  }
+}, true)
+
 const root = document.getElementById('root')
 
 if (!root) {
