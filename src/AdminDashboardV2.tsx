@@ -262,6 +262,7 @@ export default function AdminDashboardV2() {
     resetMessages()
     try {
       await Promise.all([loadOrders(currentToken), loadProducts(currentToken)])
+      setNotice('Données actualisées.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erreur de chargement')
     } finally {
@@ -282,6 +283,7 @@ export default function AdminDashboardV2() {
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || 'Action impossible')
       await loadOrders(token)
+      setNotice('Statut de la commande mis à jour.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Action impossible')
     } finally {
@@ -292,6 +294,7 @@ export default function AdminDashboardV2() {
   function editDraft(patch: Partial<AdminProduct>) {
     setDraft(current => current ? { ...current, ...patch } : current)
     setDirty(true)
+    setError('')
   }
 
   function chooseProduct(product: AdminProduct) {
@@ -305,6 +308,8 @@ export default function AdminDashboardV2() {
 
   function showProducts() {
     setSection('stock')
+    setNotice('Sélectionnez un produit dans la liste pour le modifier.')
+    setError('')
   }
 
   function startNewProduct() {
@@ -325,12 +330,34 @@ export default function AdminDashboardV2() {
     setDraft(fallback ? { ...fallback } : null)
     setDirty(false)
     resetMessages()
+    setNotice('Création annulée.')
   }
 
   function changeQuantity(delta: number) {
     if (!draft) return
     const current = draft.stock_quantity ?? 0
     editDraft({ stock_mode: 'tracked', stock_quantity: Math.max(0, current + delta) })
+  }
+
+  function toggleOrderable(checked: boolean) {
+    if (!draft) return
+    resetMessages()
+    if (!checked) {
+      editDraft({ orderable: false })
+      setNotice('Click & Collect désactivé pour ce produit.')
+      return
+    }
+    const missing: string[] = []
+    if (!draft.active) missing.push('rendre le produit visible')
+    if (draft.price_cents === null) missing.push('renseigner un prix')
+    if (draft.stock_mode !== 'tracked') missing.push('passer le stock en mode Quantifié')
+    if ((draft.stock_quantity ?? 0) <= 0) missing.push('ajouter du stock')
+    if (missing.length) {
+      setError(`Pour activer le Click & Collect : ${missing.join(', ')}.`)
+      return
+    }
+    editDraft({ orderable: true })
+    setNotice('Click & Collect activé. Pensez à enregistrer les modifications.')
   }
 
   async function uploadImage(event: ChangeEvent<HTMLInputElement>) {
@@ -380,6 +407,11 @@ export default function AdminDashboardV2() {
 
   async function saveProduct() {
     if (!draft || !token) return
+    if (!dirty && !creating) {
+      setError('')
+      setNotice('Aucune modification à enregistrer.')
+      return
+    }
     const name = draft.name.trim()
     const category = draft.category.trim()
     if (!name) {
@@ -526,6 +558,7 @@ export default function AdminDashboardV2() {
                     {selectedOrder.status === 'preparing' && <button className="admin-primary admin-ready" onClick={() => changeStatus(selectedOrder.id, 'ready')} disabled={loading}><PackageCheck /> Commande prête</button>}
                     {selectedOrder.status === 'ready' && <button className="admin-primary" onClick={() => changeStatus(selectedOrder.id, 'collected')} disabled={loading}><BadgeCheck /> Commande retirée</button>}
                     {selectedOrder.status === 'collected' && <div className="admin-complete"><BadgeCheck /> Commande terminée</div>}
+                    {['cancelled', 'refunded'].includes(selectedOrder.status) && <div className="admin-complete">Aucune action requise</div>}
                   </div>
                 </>}
               </div>
@@ -604,12 +637,12 @@ export default function AdminDashboardV2() {
 
                   <div className="admin-v2-switches">
                     <label><span><strong>Visible sur le site</strong><small>Le produit apparaît dans le catalogue client.</small></span><input type="checkbox" checked={draft.active} onChange={event => editDraft({ active: event.target.checked, orderable: event.target.checked ? draft.orderable : false })} /></label>
-                    <label className={draft.price_cents === null || draft.stock_mode !== 'tracked' || (draft.stock_quantity ?? 0) <= 0 || !draft.active ? 'is-disabled' : ''}><span><strong>Click & Collect</strong><small>Autoriser la réservation/paiement quand Stripe sera activé.</small></span><input type="checkbox" checked={draft.orderable} disabled={draft.price_cents === null || draft.stock_mode !== 'tracked' || (draft.stock_quantity ?? 0) <= 0 || !draft.active} onChange={event => editDraft({ orderable: event.target.checked })} /></label>
+                    <label><span><strong>Click & Collect</strong><small>{draft.active && draft.price_cents !== null && draft.stock_mode === 'tracked' && (draft.stock_quantity ?? 0) > 0 ? 'Autoriser la réservation/paiement quand Stripe sera activé.' : 'Cliquez pour connaître les éléments à compléter avant activation.'}</small></span><input type="checkbox" checked={draft.orderable} onChange={event => toggleOrderable(event.target.checked)} /></label>
                   </div>
 
                   <div className="admin-v2-savebar">
                     <div><small>{creating ? 'Création' : 'Dernière mise à jour'}</small><strong>{creating ? 'Nouvelle référence' : dateTime(draft.updated_at)}</strong></div>
-                    <button onClick={saveProduct} disabled={saving || uploading || !dirty}><Save size={18} /> {saving ? 'Enregistrement…' : creating ? 'Ajouter le produit' : 'Enregistrer les modifications'}</button>
+                    <button onClick={saveProduct} disabled={saving || uploading}><Save size={18} /> {saving ? 'Enregistrement…' : creating ? 'Ajouter le produit' : dirty ? 'Enregistrer les modifications' : 'Vérifier / enregistrer'}</button>
                   </div>
                 </>}
               </section>
