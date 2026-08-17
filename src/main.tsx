@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
+import AdminApp from './AdminApp'
 import './styles.css'
 import './stability.css'
 import './payment-flow.css'
@@ -41,9 +42,6 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
   }
 }
 
-// Editorial imagery is currently loaded from public remote sources. If a host
-// becomes unavailable, preserve the card geometry and replace the broken image
-// with a branded background rather than exposing a browser error icon.
 window.addEventListener('error', event => {
   const target = event.target
   if (!(target instanceof HTMLImageElement)) return
@@ -61,12 +59,18 @@ if (!root) {
   throw new Error('Root element #root is missing')
 }
 
+const isAdmin = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
+
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      {isAdmin ? (
+        <AdminApp />
+      ) : (
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      )}
     </AppErrorBoundary>
   </React.StrictMode>,
 )
