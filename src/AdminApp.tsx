@@ -29,7 +29,7 @@ type Order = {
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://whgnczmorqmhwdvmgtwt.supabase.co'
 const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndoZ25jem1vcnFtaHdkdm1ndHd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5OTE3MTYsImV4cCI6MjEwMjU2NzcxNn0.GenTCUGdLzxiyW9TtI8740WsmIg9_TUy1x0j6itPAdI'
-const ESTELLE_EMAIL = 'afrotarn@gmail.com'
+const ADMIN_EMAIL = 'eliebakala@gmail.com'
 const configured = Boolean(SUPABASE_URL && SUPABASE_KEY)
 
 function money(cents: number) {
@@ -62,7 +62,7 @@ function apiHeaders(token?: string) {
 export default function AdminApp() {
   const [token, setToken] = useState(() => sessionStorage.getItem('afrotarn-admin-token') || '')
   const [accessMode, setAccessMode] = useState<'login' | 'signup'>('login')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(ADMIN_EMAIL)
   const [password, setPassword] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -84,7 +84,7 @@ export default function AdminApp() {
       const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: apiHeaders(),
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.msg || data?.error_description || 'Connexion impossible')
@@ -105,8 +105,8 @@ export default function AdminApp() {
     setError('')
     setNotice('')
     try {
-      if (email.trim().toLowerCase() !== ESTELLE_EMAIL) {
-        throw new Error(`La première création d’accès est réservée à ${ESTELLE_EMAIL}.`)
+      if (email.trim().toLowerCase() !== ADMIN_EMAIL) {
+        throw new Error(`La création du compte administrateur est réservée à ${ADMIN_EMAIL}.`)
       }
       if (password.length < 10) throw new Error('Choisissez un mot de passe d’au moins 10 caractères.')
 
@@ -114,9 +114,9 @@ export default function AdminApp() {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: ADMIN_EMAIL,
           password,
-          data: { full_name: 'Estelle', source: 'afrotarn-admin' },
+          data: { full_name: 'Administrateur AfroTarn', source: 'afrotarn-admin' },
         }),
       })
       const data = await response.json()
@@ -124,7 +124,7 @@ export default function AdminApp() {
 
       setPassword('')
       setAccessMode('login')
-      setNotice('Compte créé. Vérifiez l’e-mail de la boutique si Supabase demande une confirmation. Les droits administrateur doivent ensuite être validés une seule fois.')
+      setNotice('Compte créé. Vérifiez votre e-mail si Supabase demande une confirmation. Les droits administrateur doivent ensuite être validés une seule fois.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Création du compte impossible')
     } finally {
@@ -199,15 +199,15 @@ export default function AdminApp() {
       <main className="admin-shell admin-login">
         <form className="admin-login-card" onSubmit={accessMode === 'login' ? login : signup}>
           <span className="admin-brand"><Store size={24} /> AFROTARN</span>
-          <small>ESPACE ESTELLE · COMMANDES</small>
+          <small>ESPACE ADMIN · COMMANDES</small>
           <h1>{accessMode === 'login' ? 'Connexion' : 'Créer mon accès'}</h1>
-          <p>{accessMode === 'login' ? 'Accès réservé à la préparation et au suivi des commandes AfroTarn.' : 'Première mise en service de l’espace commandes. Utilisez l’adresse officielle de la boutique.'}</p>
-          <label>Adresse e-mail<input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" placeholder={ESTELLE_EMAIL} /></label>
+          <p>{accessMode === 'login' ? 'Accès réservé à l’administration et au suivi des commandes AfroTarn.' : `Première mise en service de l’espace commandes avec ${ADMIN_EMAIL}.`}</p>
+          <label>Adresse e-mail<input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" placeholder={ADMIN_EMAIL} /></label>
           <label>Mot de passe<input type="password" value={password} onChange={event => setPassword(event.target.value)} required minLength={accessMode === 'signup' ? 10 : undefined} autoComplete={accessMode === 'signup' ? 'new-password' : 'current-password'} /></label>
           {notice && <div className="admin-notice">{notice}</div>}
           {error && <div className="admin-error">{error}</div>}
-          <button disabled={loading}>{loading ? 'Patientez…' : accessMode === 'login' ? 'Se connecter' : 'Créer l’accès Estelle'}</button>
-          <button className="admin-access-switch" type="button" onClick={() => { setAccessMode(mode => mode === 'login' ? 'signup' : 'login'); setError(''); setNotice(''); setPassword(''); if (!email) setEmail(ESTELLE_EMAIL) }}>
+          <button disabled={loading}>{loading ? 'Patientez…' : accessMode === 'login' ? 'Se connecter' : 'Créer l’accès admin'}</button>
+          <button className="admin-access-switch" type="button" onClick={() => { setAccessMode(mode => mode === 'login' ? 'signup' : 'login'); setError(''); setNotice(''); setPassword(''); setEmail(ADMIN_EMAIL) }}>
             {accessMode === 'login' ? 'Première connexion ? Créer l’accès' : 'J’ai déjà un accès'}
           </button>
           <a href="/">Retour à la boutique</a>
@@ -219,7 +219,7 @@ export default function AdminApp() {
   return (
     <main className="admin-shell admin-dashboard">
       <header className="admin-header">
-        <div><span className="admin-brand"><Store size={22} /> AFROTARN</span><small>COMMANDES · ESTELLE</small></div>
+        <div><span className="admin-brand"><Store size={22} /> AFROTARN</span><small>COMMANDES · ADMIN</small></div>
         <div className="admin-header-actions"><button onClick={() => loadOrders()} disabled={loading}><RefreshCw size={17} /> Actualiser</button><button onClick={() => { sessionStorage.removeItem('afrotarn-admin-token'); setToken('') }}><LogOut size={17} /> Quitter</button></div>
       </header>
 
