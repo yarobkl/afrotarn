@@ -211,6 +211,97 @@ h1,h2,h3,p,strong,span,a,button{
   flex-shrink:0;
 }
 
+/* Payment preview: visible now, non-interactive until Stripe is connected. */
+.payment-preview{
+  display:grid;
+  gap:10px;
+  margin:24px 0 18px;
+  padding:18px;
+  border-radius:20px;
+  background:rgba(255,255,255,.075);
+  border:1px solid rgba(255,255,255,.13);
+}
+
+.payment-preview-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:2px;
+}
+
+.payment-preview-head strong{
+  font-size:11px;
+  letter-spacing:.04em;
+}
+
+.payment-preview-head span{
+  flex:0 0 auto;
+  padding:5px 8px;
+  border-radius:999px;
+  background:rgba(217,165,90,.16);
+  color:#f1cc8e;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.payment-methods{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+
+.payment-method{
+  min-width:0;
+  min-height:46px;
+  padding:0 12px;
+  border-radius:13px;
+  border:1px solid rgba(255,255,255,.16);
+  background:#fff;
+  color:#101713;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+  opacity:1!important;
+  cursor:default!important;
+}
+
+.payment-method.apple-pay{
+  background:#000;
+  color:#fff;
+  border-color:#000;
+  font-size:12px;
+}
+
+.payment-method.google-pay{
+  background:#fff;
+  color:#202124;
+}
+
+.payment-method.card-pay{
+  background:rgba(255,255,255,.94);
+}
+
+.payment-secure-note{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#b9c8c1;
+  font-size:9px;
+  line-height:1.45;
+}
+
+.payment-secure-note svg{
+  flex:0 0 auto;
+  color:#efc27e;
+}
+
 /* Avoid permanent GPU layers/shimmer on ordinary content. */
 .route-transition,.product-card,.story-photo,.experience-media,.intent-card,.button{
   will-change:auto;
@@ -416,6 +507,14 @@ h1,h2,h3,p,strong,span,a,button{
 
   .qty-control{
     grid-column:2;
+  }
+
+  .payment-methods{
+    grid-template-columns:1fr;
+  }
+
+  .payment-method{
+    min-height:48px;
   }
 
   .site-footer{
