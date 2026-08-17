@@ -20,6 +20,7 @@ import {
 import './admin-orders.css'
 import './admin-access.css'
 import './admin-v2.css'
+import './admin-quick-actions.css'
 
 type OrderStatus = 'pending_payment' | 'paid' | 'preparing' | 'ready' | 'collected' | 'cancelled' | 'refunded'
 type AdminSection = 'orders' | 'stock'
@@ -302,9 +303,14 @@ export default function AdminDashboardV2() {
     resetMessages()
   }
 
+  function showProducts() {
+    setSection('stock')
+  }
+
   function startNewProduct() {
     if (dirty && !window.confirm('Abandonner les modifications non enregistrées ?')) return
     const product = emptyProduct()
+    setSection('stock')
     setCreating(true)
     setSelectedProductId(null)
     setDraft(product)
@@ -466,6 +472,18 @@ export default function AdminDashboardV2() {
         <div className="admin-v2-container admin-v2-header-inner">
           <div><span className="admin-brand"><Store size={22} /> AFROTARN</span><small>BACK-OFFICE</small></div>
           <div className="admin-header-actions">
+            <div className="admin-quick-actions" aria-label="Actions produits rapides">
+              <button type="button" className="admin-quick-products" onClick={showProducts}>
+                <Boxes size={17} />
+                <span className="admin-quick-long">Produits / modifier</span>
+                <span className="admin-quick-short">Produits</span>
+              </button>
+              <button type="button" className="admin-quick-create" onClick={startNewProduct}>
+                <Plus size={17} />
+                <span className="admin-quick-long">Ajouter un produit</span>
+                <span className="admin-quick-short">Ajouter</span>
+              </button>
+            </div>
             <button onClick={() => refreshAll()} disabled={loading || saving || uploading}><RefreshCw size={17} /> Actualiser</button>
             <button onClick={expireSession}><LogOut size={17} /> Quitter</button>
           </div>
