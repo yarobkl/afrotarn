@@ -11,6 +11,7 @@ import {
   MapPin,
   Menu,
   Minus,
+  Phone,
   Plus,
   Search,
   ShoppingBag,
