@@ -50,6 +50,7 @@ type Product = {
 }
 
 type ListState = Record<number, number>
+type PaymentChoice = 'apple' | 'google' | 'card'
 
 const products: Product[] = [
   { id: 1, name: 'Plantain', category: 'Fruits & légumes', description: 'Vert ou mûr, pour alloco, banane frite et recettes du quotidien.', status: 'Disponible en boutique', image: PLANTAIN_IMAGE, accent: '#d6a75f', tag: 'Incontournable' },
@@ -455,44 +456,62 @@ function Products({ addToList, listCount }: { addToList: (id: number) => void; l
 }
 
 function ClickCollect({ list, add, remove, clear }: { list: ListState; add: (id: number) => void; remove: (id: number) => void; clear: () => void }) {
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice | null>(null)
   const selected = products.filter(product => list[product.id])
   const count = selected.reduce((sum, product) => sum + (list[product.id] || 0), 0)
+  const paymentLabel = paymentChoice === 'apple' ? 'Apple Pay' : paymentChoice === 'google' ? 'Google Pay' : paymentChoice === 'card' ? 'Carte bancaire' : 'À choisir'
   const subject = encodeURIComponent('Demande de retrait AfroTarn')
-  const body = encodeURIComponent(`Bonjour AfroTarn,\n\nJe souhaite vérifier la disponibilité des produits suivants :\n${selected.map(product => `- ${product.name} x${list[product.id]}`).join('\n')}\n\nMerci de me confirmer la disponibilité et le retrait en boutique.\n`)
+  const body = encodeURIComponent(`Bonjour AfroTarn,\n\nJe souhaite vérifier la disponibilité des produits suivants :\n${selected.map(product => `- ${product.name} x${list[product.id]}`).join('\n')}\n\nPréférence de paiement : ${paymentLabel}.\n\nMerci de me confirmer la disponibilité et le retrait en boutique.\n`)
   const mailto = `mailto:${shop.email}?subject=${subject}&body=${body}`
+
+  useEffect(() => {
+    if (!count) setPaymentChoice(null)
+  }, [count])
 
   return (
     <div className="click-page">
       <section className="click-hero section">
-        <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}><span className="kicker">RETRAIT EN BOUTIQUE</span><h1>Préparez votre visite. <em>On s’occupe du reste.</em></h1><p>Ajoutez vos produits à une liste, envoyez votre demande, puis attendez la confirmation de la boutique avant de vous déplacer.</p></motion.div>
-        <div className="journey-steps"><div className={count ? 'done' : 'active'}><span>1</span><strong>Je sélectionne</strong><small>{count ? `${count} produit${count > 1 ? 's' : ''}` : 'Ma liste'}</small></div><div className={count ? 'active' : ''}><span>2</span><strong>AfroTarn confirme</strong><small>Disponibilité</small></div><div><span>3</span><strong>Je retire</strong><small>En boutique</small></div></div>
+        <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}><span className="kicker">RETRAIT EN BOUTIQUE</span><h1>Préparez votre visite. <em>On s’occupe du reste.</em></h1><p>Sélectionnez vos produits, choisissez votre futur moyen de paiement, puis envoyez la demande à AfroTarn pour confirmation avant le retrait.</p></motion.div>
+        <div className="journey-steps">
+          <div className={count ? 'done' : 'active'}><span>1</span><strong>Je sélectionne</strong><small>{count ? `${count} produit${count > 1 ? 's' : ''}` : 'Ma liste'}</small></div>
+          <div className={paymentChoice ? 'done' : count ? 'active' : ''}><span>2</span><strong>Je choisis le paiement</strong><small>{paymentChoice ? paymentLabel : 'Apple Pay · Google Pay · Carte'}</small></div>
+          <div className={paymentChoice ? 'active' : ''}><span>3</span><strong>AfroTarn confirme</strong><small>Disponibilité</small></div>
+          <div><span>4</span><strong>Je retire</strong><small>En boutique</small></div>
+        </div>
       </section>
 
       <section className="section list-layout" id="liste">
         <div className="list-panel">
-          <div className="list-panel-head"><div><span className="kicker">MA LISTE</span><h2>{count ? `${count} produit${count > 1 ? 's' : ''} à vérifier` : 'Votre liste est vide'}</h2></div>{count > 0 && <button className="clear-button" onClick={clear}>Vider</button>}</div>
-          {selected.length ? <div className="list-items">{selected.map(product => <div className="list-item" key={product.id}><img src={product.image} alt="" loading="lazy" decoding="async" onError={handleImageError} /><div className="list-copy"><strong>{product.name}</strong><span>{product.status}</span></div><div className="qty-control"><button onClick={() => remove(product.id)} aria-label={`Retirer un ${product.name}`}><Minus size={16} /></button><b>{list[product.id]}</b><button onClick={() => add(product.id)} aria-label={`Ajouter un ${product.name}`}><Plus size={16} /></button></div></div>)}</div> : <div className="empty-list"><ShoppingBag size={32} /><p>Commencez par ajouter les produits que vous souhaitez trouver ou réserver.</p><Link className="button button-dark" to="/produits">Explorer les produits</Link></div>}
+          <div className="list-panel-head"><div><span className="kicker">1 · MA SÉLECTION</span><h2>{count ? `${count} produit${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}` : 'Votre liste est vide'}</h2></div>{count > 0 && <button className="clear-button" onClick={clear}>Vider</button>}</div>
+          {selected.length ? (
+            <>
+              <div className="list-items">{selected.map(product => <div className="list-item" key={product.id}><img src={product.image} alt="" loading="lazy" decoding="async" onError={handleImageError} /><div className="list-copy"><strong>{product.name}</strong><span>{product.status}</span></div><div className="qty-control"><button onClick={() => remove(product.id)} aria-label={`Retirer un ${product.name}`}><Minus size={16} /></button><b>{list[product.id]}</b><button onClick={() => add(product.id)} aria-label={`Ajouter un ${product.name}`}><Plus size={16} /></button></div></div>)}</div>
+
+              <motion.div className="checkout-payment-step" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="checkout-payment-head">
+                  <div><span className="kicker">2 · PAIEMENT</span><strong>Comment souhaitez-vous payer ?</strong><p>Choisissez déjà votre préférence. L’encaissement Stripe sera activé dans une prochaine étape.</p></div>
+                  <span>Préparation</span>
+                </div>
+                <div className="checkout-payment-methods" role="radiogroup" aria-label="Choisir un moyen de paiement">
+                  <button type="button" role="radio" aria-checked={paymentChoice === 'apple'} className={`checkout-payment-method apple ${paymentChoice === 'apple' ? 'is-selected' : ''}`} onClick={() => setPaymentChoice('apple')}>Apple Pay</button>
+                  <button type="button" role="radio" aria-checked={paymentChoice === 'google'} className={`checkout-payment-method google ${paymentChoice === 'google' ? 'is-selected' : ''}`} onClick={() => setPaymentChoice('google')}>Google Pay</button>
+                  <button type="button" role="radio" aria-checked={paymentChoice === 'card'} className={`checkout-payment-method card ${paymentChoice === 'card' ? 'is-selected' : ''}`} onClick={() => setPaymentChoice('card')}><CreditCard size={18} /> Carte bancaire</button>
+                </div>
+                <div className="checkout-payment-note"><BadgeCheck size={15} /><span>Aucun débit n’est effectué actuellement. Cette sélection prépare le futur paiement sécurisé Stripe.</span></div>
+              </motion.div>
+            </>
+          ) : <div className="empty-list"><ShoppingBag size={32} /><p>Commencez par ajouter les produits que vous souhaitez trouver ou réserver.</p><Link className="button button-dark" to="/produits">Explorer les produits</Link></div>}
         </div>
 
         <aside className="confirmation-card">
-          <span className="kicker light">CONFIRMATION</span>
-          <h2>Avant de venir</h2>
-          <p>Les stocks magasin peuvent évoluer dans la journée. Envoyez votre liste pour demander une confirmation à AfroTarn.</p>
-          <div className="confirmation-points"><div><BadgeCheck size={19} /><span>Votre liste est préremplie dans l’e-mail.</span></div><div><Clock3 size={19} /><span>Attendez la réponse de la boutique avant le retrait.</span></div><div><MapPin size={19} /><span>Retrait au 70 rue du Château du Roi.</span></div></div>
-
-          <div className="payment-preview" aria-label="Aperçu des moyens de paiement bientôt disponibles">
-            <div className="payment-preview-head"><strong>Paiement en ligne</strong><span>Bientôt disponible</span></div>
-            <div className="payment-methods">
-              <button className="payment-method apple-pay" type="button" disabled aria-label="Apple Pay bientôt disponible">Apple Pay</button>
-              <button className="payment-method google-pay" type="button" disabled aria-label="Google Pay bientôt disponible">Google Pay</button>
-              <button className="payment-method card-pay" type="button" disabled aria-label="Carte bancaire bientôt disponible"><CreditCard size={17} /> Carte</button>
-            </div>
-            <div className="payment-secure-note"><BadgeCheck size={15} /><span>Paiement sécurisé via Stripe lors de l’activation.</span></div>
-          </div>
-
-          {count > 0 ? <a className="button button-light full" href={mailto}><Mail size={18} /> Envoyer ma demande</a> : <Link className="button button-light full" to="/produits"><Search size={18} /> Choisir mes produits</Link>}
+          <span className="kicker light">3 · CONFIRMATION</span>
+          <h2>Finaliser la demande</h2>
+          <p>Les stocks magasin peuvent évoluer dans la journée. Une confirmation d’AfroTarn reste nécessaire avant de venir retirer la commande.</p>
+          <div className="confirmation-points"><div><BadgeCheck size={19} /><span>Votre sélection est reprise automatiquement.</span></div><div><Clock3 size={19} /><span>AfroTarn confirme la disponibilité avant votre déplacement.</span></div><div><MapPin size={19} /><span>Retrait au 70 rue du Château du Roi.</span></div></div>
+          {count > 0 && <div className="selected-payment-summary"><span>Mode de paiement prévu</span><strong>{paymentLabel}</strong></div>}
+          {count > 0 && paymentChoice ? <a className="button button-light full" href={mailto}><Mail size={18} /> Finaliser ma demande</a> : count > 0 ? <a className="button button-light full is-disabled" aria-disabled="true"><CreditCard size={18} /> Choisir le paiement d’abord</a> : <Link className="button button-light full" to="/produits"><Search size={18} /> Choisir mes produits</Link>}
           <a className="button button-outline-light full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler directement</a>
-          <small className="confirmation-note">Le paiement en ligne n’est pas encore actif. Les boutons Apple Pay, Google Pay et carte préparent simplement l’interface avant la connexion Stripe.</small>
+          <small className="confirmation-note">Apple Pay, Google Pay et carte bancaire sont affichés pour préparer le parcours. Aucun paiement réel n’est encore encaissé tant que Stripe n’est pas connecté.</small>
         </aside>
       </section>
     </div>
