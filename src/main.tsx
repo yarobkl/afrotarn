@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import AdminApp from './AdminApp'
 import OrderConfirmation from './OrderConfirmation'
+import { CatalogRoute, ClickCollectRoute } from './CommerceRoutes'
 import './styles.css'
 import './stability.css'
 import './payment-flow.css'
@@ -70,6 +71,8 @@ ReactDOM.createRoot(root).render(
       ) : (
         <BrowserRouter>
           <Routes>
+            <Route path="/produits" element={<CatalogRoute />} />
+            <Route path="/click-collect" element={<ClickCollectRoute />} />
             <Route path="/commande/confirmee" element={<OrderConfirmation />} />
             <Route path="*" element={<App />} />
           </Routes>
