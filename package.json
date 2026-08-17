@@ -1,12 +1,17 @@
 {
   "name": "afrotarn",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
     "build": "tsc -b && vite build",
+    "check": "npm run typecheck && npm run build",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "framer-motion": "12.43.0",
