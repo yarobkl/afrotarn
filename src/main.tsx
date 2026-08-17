@@ -1,8 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import AdminApp from './AdminApp'
+import OrderConfirmation from './OrderConfirmation'
 import './styles.css'
 import './stability.css'
 import './payment-flow.css'
@@ -68,7 +69,10 @@ ReactDOM.createRoot(root).render(
         <AdminApp />
       ) : (
         <BrowserRouter>
-          <App />
+          <Routes>
+            <Route path="/commande/confirmee" element={<OrderConfirmation />} />
+            <Route path="*" element={<App />} />
+          </Routes>
         </BrowserRouter>
       )}
     </AppErrorBoundary>
