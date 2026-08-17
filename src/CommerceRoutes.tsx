@@ -198,7 +198,7 @@ function CommerceLayout({ children, count }: { children: React.ReactNode; count:
       <Wordmark />
       <nav className="desktop-nav"><NavLink to="/">Accueil</NavLink><NavLink to="/produits">Produits</NavLink><NavLink to="/click-collect">Retrait</NavLink><a href={shop.map}>La boutique</a></nav>
       <Link className="header-list" to="/click-collect"><ShoppingBag size={17} /><span>Ma liste</span>{count > 0 && <b>{count}</b>}</Link>
-      <button className="mobile-menu-button" onClick={() => setMenuOpen(open => !open)} aria-label="Menu">{menuOpen ? <X size={23} /> : <Menu size={23} />}</button>
+      <button className="mobile-menu-button" onClick={() => setMenuOpen(open => !open)} aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={menuOpen}>{menuOpen ? <X size={23} /> : <Menu size={23} />}</button>
       <AnimatePresence>{menuOpen && <motion.div className="mobile-panel" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}><NavLink to="/">Accueil <ChevronRight size={18} /></NavLink><NavLink to="/produits">Explorer les produits <ChevronRight size={18} /></NavLink><NavLink to="/click-collect">Ma sélection <ChevronRight size={18} /></NavLink><a href={shop.map}>Itinéraire <ChevronRight size={18} /></a></motion.div>}</AnimatePresence>
     </header>
     <main className="page-stage">{children}</main>
@@ -232,12 +232,26 @@ function CatalogContent({ products, add, count, loading, offline }: { products: 
     return products.filter(product => (category === 'Tous' || product.category === category) && (!normalized || `${product.name} ${product.category} ${product.description}`.toLocaleLowerCase('fr').includes(normalized)))
   }, [products, query, category])
 
+  useEffect(() => {
+    if (!selected) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelected(null)
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [selected])
+
   return <>
     <section className="section catalog-hero commerce-v2-hero"><div><span className="kicker">CATALOGUE EN DIRECT</span><h1>Le stock du magasin, <em>plus clair.</em></h1></div><p>Les disponibilités affichées viennent maintenant du stock géré dans l’espace AfroTarn.</p></section>
     {offline && <div className="section commerce-v2-sync-warning">Connexion au stock momentanément indisponible. Les dernières références connues restent affichées.</div>}
-    <section className="catalog-tools-wrap"><div className="section catalog-tools"><label className="catalog-search"><Search size={20} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher un produit…" />{query && <button onClick={() => setQuery('')} aria-label="Effacer la recherche"><X size={18} /></button>}</label><div className="category-scroll">{categories.map(item => <button key={item} className={item === category ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div></div></section>
+    <section className="catalog-tools-wrap"><div className="section catalog-tools"><label className="catalog-search"><Search size={20} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher un produit…" aria-label="Rechercher un produit" />{query && <button onClick={() => setQuery('')} aria-label="Effacer la recherche"><X size={18} /></button>}</label><div className="category-scroll" role="tablist" aria-label="Catégories">{categories.map(item => <button key={item} role="tab" aria-selected={item === category} className={item === category ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div></div></section>
     <section className="section catalog-content"><div className="results-line"><span>{loading ? 'Mise à jour…' : <><strong>{filtered.length}</strong> résultat{filtered.length > 1 ? 's' : ''}</>}</span>{count > 0 && <Link to="/click-collect">Ma liste · {count} <ArrowRight size={15} /></Link>}</div>{filtered.length ? <div className="product-grid">{filtered.map(product => <ProductCard key={product.dbId} product={product} add={add} onOpen={setSelected} />)}</div> : <div className="empty-results"><Search size={30} /><h3>Aucun produit trouvé</h3><p>Essayez un autre mot-clé ou contactez la boutique.</p><a className="button button-dark" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler la boutique</a></div>}</section>
-    <AnimatePresence>{selected && <><motion.button className="sheet-backdrop" aria-label="Fermer" onClick={() => setSelected(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="product-sheet" role="dialog" aria-modal="true" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}><button className="sheet-close" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button><div className="sheet-image"><img src={selected.image} alt={selected.name} onError={handleImageError} /></div><div className="sheet-content"><span className="kicker">{selected.category}</span><h2>{selected.name}</h2><span className={`availability ${!selected.available ? 'commerce-v2-out' : ''}`}><i />{selected.status}</span>{selected.priceCents !== null && <strong className="commerce-v2-sheet-price">{money(selected.priceCents)}</strong>}<p>{selected.description}</p><button className="button button-dark full" onClick={() => { if (selected.available) { add(selected); setSelected(null) } else window.location.href = `tel:${shop.phoneHref}` }}>{selected.available ? <><Plus size={18} /> Ajouter à ma liste</> : <><Phone size={18} /> Vérifier la disponibilité</>}</button><a className="button button-ghost full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler AfroTarn</a></div></motion.aside></>}</AnimatePresence>
+    <AnimatePresence>{selected && <><motion.button className="sheet-backdrop" aria-label="Fermer" onClick={() => setSelected(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="product-sheet" role="dialog" aria-modal="true" aria-label={`Détails de ${selected.name}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}><button className="sheet-close" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button><div className="sheet-image"><img src={selected.image} alt={selected.name} onError={handleImageError} /></div><div className="sheet-content"><span className="kicker">{selected.category}</span><h2>{selected.name}</h2><span className={`availability ${!selected.available ? 'commerce-v2-out' : ''}`}><i />{selected.status}</span>{selected.priceCents !== null && <strong className="commerce-v2-sheet-price">{money(selected.priceCents)}</strong>}<p>{selected.description}</p><button className="button button-dark full" onClick={() => { if (selected.available) { add(selected); setSelected(null) } else window.location.href = `tel:${shop.phoneHref}` }}>{selected.available ? <><Plus size={18} /> Ajouter à ma liste</> : <><Phone size={18} /> Vérifier la disponibilité</>}</button><a className="button button-ghost full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler AfroTarn</a></div></motion.aside></>}</AnimatePresence>
   </>
 }
 
