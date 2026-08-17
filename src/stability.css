@@ -1,0 +1,475 @@
+/* AfroTarn — production stability layer
+   Loaded after styles.css. Keep this file focused on layout integrity,
+   responsive behaviour, touch ergonomics and motion safety. */
+
+:root{
+  --header-desktop:78px;
+  --header-desktop-compact:66px;
+  --header-mobile:68px;
+  --dock-mobile:66px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --safe-left:env(safe-area-inset-left,0px);
+  --safe-right:env(safe-area-inset-right,0px);
+}
+
+html{
+  min-width:320px;
+  overflow-x:clip;
+  scroll-padding-top:calc(var(--header-desktop) + 18px);
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  scrollbar-gutter:stable;
+}
+
+body{
+  min-width:320px;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-x:clip;
+}
+
+#root,.site-shell,.page-stage,.route-transition,main,section,header,footer,nav,
+.home-hero>*,.catalog-hero>*,.click-hero>*,.list-layout>*,.estelle-story>*,
+.shop-experience>*,.practical-section>*,.footer-grid>*{
+  min-width:0;
+}
+
+.site-shell{
+  position:relative;
+  isolation:isolate;
+}
+
+img{
+  display:block;
+  max-width:100%;
+  background:#e7ded2;
+  color:transparent;
+}
+
+a,button,input{
+  -webkit-tap-highlight-color:transparent;
+}
+
+button,input{
+  border-radius:0;
+}
+
+button{
+  cursor:pointer;
+}
+
+button:disabled{
+  cursor:not-allowed;
+  opacity:.55;
+}
+
+button,a{
+  touch-action:manipulation;
+}
+
+h1,h2,h3,p,strong,span,a,button{
+  overflow-wrap:break-word;
+}
+
+/* Header: isolate blur and avoid sub-pixel jitter while scrolling. */
+.site-header{
+  width:100%;
+  will-change:auto;
+  contain:layout style;
+}
+
+.site-header,.catalog-tools-wrap,.mobile-dock,.mobile-panel{
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+}
+
+.wordmark,.desktop-nav,.header-list,.desktop-status{
+  flex-shrink:0;
+}
+
+.desktop-nav{
+  min-width:0;
+}
+
+/* Hero sizing stays predictable across Safari's dynamic browser bars. */
+.home-hero{
+  min-height:calc(100vh - var(--header-desktop));
+  min-height:calc(100svh - var(--header-desktop));
+}
+
+.hero-media{
+  min-height:clamp(620px,calc(100svh - var(--header-desktop)),900px);
+  contain:paint;
+}
+
+.hero-media img{
+  backface-visibility:hidden;
+  transform-origin:center center;
+}
+
+.hero-copy{
+  min-width:0;
+}
+
+.hero-copy h1,
+.catalog-hero h1,
+.click-hero h1,
+.section-intro h2,
+.story-copy h2,
+.experience-copy h2,
+.practical-main h2{
+  text-wrap:balance;
+}
+
+.hero-copy>p,.catalog-hero p,.click-hero p,.section-intro p,.story-copy p,.experience-copy>p{
+  text-wrap:pretty;
+}
+
+/* Cards keep a stable box even while remote imagery is loading. */
+.product-card{
+  min-width:0;
+  contain:layout paint;
+}
+
+.product-visual{
+  aspect-ratio:4/4.45;
+  height:auto;
+  min-height:240px;
+}
+
+.product-visual img,.sheet-image img,.list-item img,.story-photo img,.experience-media img{
+  width:100%;
+  height:100%;
+}
+
+.product-body,.product-title,.product-title h3,.product-topline{
+  min-width:0;
+}
+
+.product-title{
+  width:100%;
+}
+
+.product-topline span,.product-topline i{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.product-actions button{
+  min-width:0;
+}
+
+/* Search/filter bar: no accidental width overflow and smooth horizontal categories. */
+.catalog-tools-wrap{
+  isolation:isolate;
+}
+
+.catalog-tools,.catalog-search,.category-scroll{
+  min-width:0;
+}
+
+.catalog-search input{
+  min-width:0;
+}
+
+.category-scroll{
+  scroll-behavior:smooth;
+  -webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;
+  padding-bottom:1px;
+}
+
+.category-scroll button{
+  flex:0 0 auto;
+  scroll-snap-align:start;
+}
+
+/* Side sheet behaves as a true mobile-safe scroll region. */
+.product-sheet{
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  max-height:100dvh;
+}
+
+.sheet-content{
+  min-width:0;
+}
+
+.sheet-backdrop{
+  cursor:default;
+}
+
+/* Lists remain readable even with long product names. */
+.list-copy,.list-panel-head>*,.confirmation-card{
+  min-width:0;
+}
+
+.list-item{
+  min-width:0;
+}
+
+.qty-control{
+  flex-shrink:0;
+}
+
+/* Avoid permanent GPU layers/shimmer on ordinary content. */
+.route-transition,.product-card,.story-photo,.experience-media,.intent-card,.button{
+  will-change:auto;
+}
+
+/* Hover effects only belong to devices that actually hover. */
+@media (hover:hover) and (pointer:fine){
+  .button:hover{transform:translateY(-2px)}
+  .product-card:hover{box-shadow:0 20px 50px rgba(20,35,29,.1)}
+  .product-card:hover .product-visual img{transform:scale(1.035);filter:saturate(1.04)}
+  .story-photo:hover img,.experience-media:hover img{transform:scale(1.02)}
+  .wordmark:hover .wordmark-seal{transform:rotate(-4deg) scale(1.025)}
+}
+
+@media (hover:none),(pointer:coarse){
+  .button:hover,.desktop-nav a:hover,.wordmark:hover .wordmark-seal,
+  .product-card:hover .product-visual img,.story-photo:hover img,.experience-media:hover img{
+    transform:none;
+  }
+  .product-card:hover{box-shadow:0 8px 25px rgba(20,35,29,.035)}
+}
+
+/* Solid fallbacks if backdrop-filter is unavailable or disabled. */
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
+  .site-header,.catalog-tools-wrap{background:#f8f4ed}
+  .mobile-panel{background:#fbf8f2}
+  .mobile-dock{background:#10271d}
+  .hero-photo-tag,.product-tag{background:#fbf8f2}
+}
+
+/* Tablet: keep grids balanced and never force desktop proportions. */
+@media (max-width:1100px){
+  .site-header{gap:12px}
+  .desktop-nav a{padding-inline:9px}
+  .wordmark-copy small{max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero-copy{padding-left:clamp(28px,4vw,52px);padding-right:clamp(28px,4vw,52px)}
+}
+
+@media (max-width:980px){
+  html{scroll-padding-top:calc(var(--header-desktop-compact) + 16px)}
+  .hero-media{min-height:600px}
+  .home-product-grid,.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .catalog-hero,.click-hero,.list-layout,.estelle-story,.shop-experience,.practical-section{gap:34px}
+  .story-photo,.experience-media{min-height:520px}
+  .footer-grid{gap:32px}
+}
+
+/* Mobile production rules. Keep the header height fixed to prevent sticky content jumps. */
+@media (max-width:760px){
+  :root{--header-desktop:var(--header-mobile)}
+
+  html{
+    scroll-padding-top:calc(var(--header-mobile) + 14px);
+    scrollbar-gutter:auto;
+  }
+
+  body{
+    padding-bottom:calc(86px + var(--safe-bottom));
+  }
+
+  .section{
+    width:calc(100% - 28px);
+    max-width:1180px;
+  }
+
+  .site-header,
+  .site-header.is-compact{
+    height:var(--header-mobile);
+    padding-left:max(14px,var(--safe-left));
+    padding-right:max(14px,var(--safe-right));
+  }
+
+  .wordmark-copy{
+    min-width:0;
+  }
+
+  .wordmark-copy strong{
+    white-space:nowrap;
+  }
+
+  .mobile-panel{
+    top:calc(var(--header-mobile) + 4px);
+    left:max(10px,var(--safe-left));
+    right:max(10px,var(--safe-right));
+    max-height:calc(100dvh - var(--header-mobile) - 24px - var(--safe-bottom));
+    overflow:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .mobile-panel>a{
+    flex-shrink:0;
+  }
+
+  .mobile-dock{
+    left:max(10px,var(--safe-left));
+    right:max(10px,var(--safe-right));
+    bottom:max(10px,var(--safe-bottom));
+    height:var(--dock-mobile);
+  }
+
+  .mobile-dock a{
+    min-width:0;
+  }
+
+  .mobile-dock a span{
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .home-hero{
+    min-height:auto;
+  }
+
+  .hero-media{
+    min-height:52svh;
+    max-height:620px;
+  }
+
+  /* Parallax is intentionally disabled on phones for scroll stability and battery life. */
+  .hero-media img{
+    transform:none!important;
+    inset:0;
+    width:100%;
+    height:100%;
+  }
+
+  .hero-copy{
+    padding-left:18px;
+    padding-right:18px;
+  }
+
+  .hero-copy h1{
+    font-size:clamp(46px,15vw,66px);
+  }
+
+  .intent-shell{
+    width:calc(100% - 24px);
+  }
+
+  .home-products{
+    padding-top:82px;
+  }
+
+  .home-product-grid,.product-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .product-visual,.is-compact-card .product-visual{
+    aspect-ratio:1/1.08;
+    height:auto;
+    min-height:0;
+  }
+
+  .product-topline i{
+    white-space:normal;
+  }
+
+  .catalog-tools-wrap{
+    top:var(--header-mobile);
+  }
+
+  .catalog-search input{
+    font-size:16px; /* prevents Safari from zooming on focus */
+  }
+
+  .category-scroll{
+    margin-right:-14px;
+    padding-right:14px;
+  }
+
+  .floating-list{
+    left:max(13px,var(--safe-left));
+    right:max(13px,var(--safe-right));
+    bottom:calc(var(--dock-mobile) + 25px + var(--safe-bottom));
+  }
+
+  .product-sheet{
+    top:8px;
+    bottom:0;
+    height:auto;
+    max-height:calc(100dvh - 8px);
+    border-radius:26px 26px 0 0;
+  }
+
+  .sheet-image{
+    height:min(38dvh,360px);
+  }
+
+  .sheet-content{
+    padding-bottom:calc(32px + var(--safe-bottom));
+  }
+
+  .list-layout{
+    scroll-margin-top:calc(var(--header-mobile) + 72px);
+  }
+
+  .list-item{
+    grid-template-columns:58px minmax(0,1fr);
+  }
+
+  .qty-control{
+    grid-column:2;
+  }
+
+  .site-footer{
+    padding-left:max(18px,var(--safe-left));
+    padding-right:max(18px,var(--safe-right));
+    padding-bottom:calc(96px + var(--safe-bottom));
+  }
+}
+
+@media (max-width:430px){
+  .section{width:calc(100% - 24px)}
+  .hero-copy{padding-left:16px;padding-right:16px}
+  .intent-shell{width:calc(100% - 20px)}
+  .product-body{padding:11px}
+  .product-title h3{font-size:21px}
+  .product-body p{min-height:42px}
+  .practical-card{padding:22px}
+  .journey-steps strong{font-size:10px}
+}
+
+@media (max-width:360px){
+  .wordmark-copy small{display:none}
+  .home-product-grid,.product-grid{grid-template-columns:1fr}
+  .product-visual,.is-compact-card .product-visual{aspect-ratio:4/3.5}
+  .add-button{font-size:10px}
+  .add-button::after{content:''}
+  .mobile-dock a{font-size:7px}
+  .mobile-dock b{right:10%}
+}
+
+/* Short landscape phones: prevent the hero from swallowing the whole viewport. */
+@media (max-width:900px) and (max-height:520px) and (orientation:landscape){
+  .hero-media{min-height:420px}
+  .home-hero{display:grid;grid-template-columns:1fr 1fr}
+  .hero-copy{padding:28px}
+  .hero-copy h1{font-size:48px}
+  .mobile-panel{max-height:calc(100dvh - 78px)}
+}
+
+/* Accessibility and performance: motion never blocks navigation. */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto!important}
+  *,*::before,*::after{
+    animation-duration:.001ms!important;
+    animation-delay:0ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+  .hero-media img{transform:none!important}
+}
+
+@media (prefers-contrast:more){
+  :focus-visible{outline-color:#7e5316;outline-width:3px}
+  .product-card,.catalog-search,.intent-shell,.journey-steps{border-color:#968d82}
+  .kicker,.product-topline span,.product-body p{color:#483e35}
+}
