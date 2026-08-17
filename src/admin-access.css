@@ -1,0 +1,20 @@
+.admin-access-switch{
+  width:100%;
+  border:0;
+  background:transparent!important;
+  color:#8e6d3f!important;
+  padding:4px 0!important;
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+
+.admin-notice{
+  border:1px solid rgba(52,118,82,.22);
+  background:rgba(52,118,82,.08);
+  color:#1f5a3e;
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:13px;
+  line-height:1.5;
+}
