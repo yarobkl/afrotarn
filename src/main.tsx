@@ -9,6 +9,7 @@ import './styles.css'
 import './stability.css'
 import './payment-flow.css'
 import './error.css'
+import './mobile-dock-fix.css'
 
 type ErrorBoundaryState = { hasError: boolean }
 
