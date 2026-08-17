@@ -26,9 +26,15 @@ export default function OrderConfirmation({ onConfirmed }: { onConfirmed?: () =>
   const sessionId = new URLSearchParams(location.search).get('session_id') || ''
   const [data, setData] = useState<StatusPayload>({ status: 'processing' })
   const [error, setError] = useState('')
+  const [timedOut, setTimedOut] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
   const cleared = useRef(false)
 
   useEffect(() => {
+    setError('')
+    setTimedOut(false)
+    setData({ status: 'processing' })
+
     if (!sessionId) {
       setError('Aucune session de paiement n’a été trouvée.')
       return
@@ -61,8 +67,11 @@ export default function OrderConfirmation({ onConfirmed }: { onConfirmed?: () =>
           onConfirmed?.()
         }
 
-        if (!confirmed && payload.status !== 'cancelled' && payload.status !== 'refunded' && attempts < 10) {
+        const terminal = confirmed || payload.status === 'cancelled' || payload.status === 'refunded'
+        if (!terminal && attempts < 10) {
           timer = window.setTimeout(check, 1800)
+        } else if (!terminal && attempts >= 10) {
+          setTimedOut(true)
         }
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'Impossible de vérifier la commande.')
@@ -74,7 +83,7 @@ export default function OrderConfirmation({ onConfirmed }: { onConfirmed?: () =>
       cancelled = true
       if (timer) window.clearTimeout(timer)
     }
-  }, [sessionId, onConfirmed])
+  }, [sessionId, onConfirmed, retryKey])
 
   const status = data.status || 'processing'
   const confirmed = ['paid', 'preparing', 'ready', 'collected'].includes(status)
@@ -91,7 +100,12 @@ export default function OrderConfirmation({ onConfirmed }: { onConfirmed?: () =>
           <span className="kicker">SUIVI DE COMMANDE</span>
           <h1>Nous n’arrivons pas encore à vérifier la commande.</h1>
           <p>{error}</p>
-          <div className="order-confirmation-actions"><Link className="button button-dark" to="/click-collect">Retour au panier</Link></div>
+          <div className="order-confirmation-actions"><button className="button button-dark" type="button" onClick={() => setRetryKey(key => key + 1)}>Réessayer</button><Link className="button button-ghost" to="/click-collect">Retour au panier</Link></div>
+        </> : timedOut ? <>
+          <span className="kicker">CONFIRMATION EN COURS</span>
+          <h1>La confirmation prend un peu plus de temps.</h1>
+          <p>Votre paiement n’est pas déclaré échoué. Nous attendons simplement la confirmation serveur. Vous pouvez relancer la vérification sans repayer.</p>
+          <div className="order-confirmation-actions"><button className="button button-dark" type="button" onClick={() => setRetryKey(key => key + 1)}>Vérifier à nouveau</button><Link className="button button-ghost" to="/">Retour à l’accueil</Link></div>
         </> : ready ? <>
           <span className="kicker">COMMANDE PRÊTE</span>
           <h1>Votre commande vous attend.</h1>
