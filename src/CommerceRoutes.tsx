@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, BadgeCheck, ChevronRight, CreditCard, Mail, MapPin, Menu, Minus, Phone, Plus, Search, ShoppingBag, Store, X } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import './commerce-v2.css'
+import './promotion.css'
 
 type StockMode = 'tracked' | 'store_only' | 'arrival'
 type PaymentChoice = 'apple' | 'google' | 'card'
@@ -14,6 +15,9 @@ type DbProduct = {
   category: string
   description: string | null
   price_cents: number | null
+  promotion_active: boolean
+  promo_price_cents: number | null
+  promo_label: string | null
   active: boolean
   orderable: boolean
   stock_mode: StockMode
@@ -29,6 +33,11 @@ type Product = {
   category: string
   description: string
   priceCents: number | null
+  regularPriceCents: number | null
+  promoPriceCents: number | null
+  promotionActive: boolean
+  promoLabel: string
+  hasPromoPrice: boolean
   orderable: boolean
   stockMode: StockMode
   stockQuantity: number | null
@@ -53,8 +62,8 @@ const shop = {
 const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900"><rect width="1200" height="900" fill="#123c2d"/><circle cx="600" cy="400" r="150" fill="none" stroke="#d9a55a" stroke-width="3" opacity=".6"/><text x="600" y="430" fill="#f3eee6" text-anchor="middle" font-family="Georgia,serif" font-size="82">AFROTARN</text><text x="600" y="495" fill="#d9a55a" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" letter-spacing="8">GAILLAC</text></svg>')}`
 
 const fallbackProducts: Product[] = [
-  { id: 1, dbId: '1', name: 'Plantain', category: 'Fruits & légumes', description: 'Vert ou mûr, pour alloco, banane frite et recettes du quotidien.', priceCents: null, orderable: false, stockMode: 'arrival', stockQuantity: null, safetyStock: 0, status: 'Selon arrivage', available: true, image: FALLBACK_IMAGE, tag: 'Fruits & légumes', accent: '#d6a75f' },
-  { id: 2, dbId: '2', name: 'Manioc', category: 'Fruits & légumes', description: 'Un incontournable à cuisiner bouilli, frit ou transformé.', priceCents: null, orderable: false, stockMode: 'arrival', stockQuantity: null, safetyStock: 0, status: 'Selon arrivage', available: true, image: FALLBACK_IMAGE, tag: 'Fruits & légumes', accent: '#9c6844' },
+  { id: 1, dbId: '1', name: 'Plantain', category: 'Fruits & légumes', description: 'Vert ou mûr, pour alloco, banane frite et recettes du quotidien.', priceCents: null, regularPriceCents: null, promoPriceCents: null, promotionActive: false, promoLabel: 'PROMO', hasPromoPrice: false, orderable: false, stockMode: 'arrival', stockQuantity: null, safetyStock: 0, status: 'Selon arrivage', available: true, image: FALLBACK_IMAGE, tag: 'Fruits & légumes', accent: '#d6a75f' },
+  { id: 2, dbId: '2', name: 'Manioc', category: 'Fruits & légumes', description: 'Un incontournable à cuisiner bouilli, frit ou transformé.', priceCents: null, regularPriceCents: null, promoPriceCents: null, promotionActive: false, promoLabel: 'PROMO', hasPromoPrice: false, orderable: false, stockMode: 'arrival', stockQuantity: null, safetyStock: 0, status: 'Selon arrivage', available: true, image: FALLBACK_IMAGE, tag: 'Fruits & légumes', accent: '#9c6844' },
 ]
 
 function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
@@ -78,13 +87,24 @@ function toProduct(row: DbProduct): Product | null {
   const status = row.stock_mode === 'tracked'
     ? quantity <= 0 ? 'Indisponible' : quantity <= row.safety_stock ? 'Plus que quelques articles' : 'Disponible'
     : row.stock_mode === 'arrival' ? 'Selon arrivage' : 'Disponible en boutique'
+  const hasPromoPrice = Boolean(
+    row.promotion_active
+    && row.price_cents !== null
+    && row.promo_price_cents !== null
+    && row.promo_price_cents < row.price_cents,
+  )
   return {
     id,
     dbId: row.id,
     name: row.name,
     category: row.category,
     description: row.description || 'Référence disponible chez AfroTarn.',
-    priceCents: row.price_cents,
+    priceCents: hasPromoPrice ? row.promo_price_cents : row.price_cents,
+    regularPriceCents: row.price_cents,
+    promoPriceCents: row.promo_price_cents,
+    promotionActive: row.promotion_active,
+    promoLabel: row.promo_label?.trim() || 'PROMO',
+    hasPromoPrice,
     orderable: row.orderable,
     stockMode: row.stock_mode,
     stockQuantity: row.stock_quantity,
@@ -104,7 +124,7 @@ function usePublicCatalog() {
 
   async function load() {
     try {
-      const select = encodeURIComponent('id,name,category,description,price_cents,active,orderable,stock_mode,stock_quantity,safety_stock,image_url')
+      const select = encodeURIComponent('id,name,category,description,price_cents,promotion_active,promo_price_cents,promo_label,active,orderable,stock_mode,stock_quantity,safety_stock,image_url')
       const response = await fetch(`${SUPABASE_URL}/rest/v1/products?select=${select}&active=eq.true&order=category.asc,name.asc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
         cache: 'no-store',
@@ -207,19 +227,28 @@ function CommerceLayout({ children, count }: { children: React.ReactNode; count:
   </div>
 }
 
+function money(cents: number) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+}
+
+function ProductPrice({ product, sheet = false }: { product: Product; sheet?: boolean }) {
+  if (product.hasPromoPrice && product.regularPriceCents !== null && product.promoPriceCents !== null) {
+    return <div className={`promo-price-row ${sheet ? 'sheet' : ''}`}><span className="promo-old-price">{money(product.regularPriceCents)}</span><strong className="promo-current-price">{money(product.promoPriceCents)}</strong></div>
+  }
+  if (product.priceCents !== null) return <strong className={sheet ? 'commerce-v2-sheet-price' : 'commerce-v2-price'}>{money(product.priceCents)}</strong>
+  if (product.promotionActive) return <span className="promo-flag-only">{product.promoLabel}</span>
+  return null
+}
+
 function ProductCard({ product, add, onOpen }: { product: Product; add: (product: Product) => void; onOpen: (product: Product) => void }) {
   const handlePrimary = () => {
     if (product.available) add(product)
     else window.location.href = `tel:${shop.phoneHref}`
   }
-  return <motion.article className={`product-card commerce-v2-product ${!product.available ? 'is-unavailable' : ''}`} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .1 }}>
-    <button className="product-visual" onClick={() => onOpen(product)} style={{ '--accent': product.accent } as React.CSSProperties}><img src={product.image} alt="" loading="lazy" onError={handleImageError} /><span className="product-tag">{product.tag}</span></button>
-    <div className="product-body"><div className="product-topline"><span>{product.category}</span><i className={!product.available ? 'commerce-v2-out' : ''}>{product.status}</i></div><button className="product-title" onClick={() => onOpen(product)}><h3>{product.name}</h3></button><p>{product.description}</p>{product.priceCents !== null && <strong className="commerce-v2-price">{money(product.priceCents)}</strong>}<div className="product-actions"><button className="add-button" onClick={handlePrimary}>{product.available ? <><Plus size={17} /> Ajouter à ma liste</> : <><Phone size={17} /> Vérifier en boutique</>}</button><button className="icon-button" onClick={() => onOpen(product)} aria-label={`Voir ${product.name}`}><ArrowRight size={17} /></button></div></div>
+  return <motion.article className={`product-card commerce-v2-product ${!product.available ? 'is-unavailable' : ''} ${product.promotionActive ? 'is-promo' : ''}`} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .1 }}>
+    <button className="product-visual" data-promo-label={product.promoLabel} onClick={() => onOpen(product)} style={{ '--accent': product.accent } as React.CSSProperties}><img src={product.image} alt="" loading="lazy" onError={handleImageError} /><span className="product-tag">{product.tag}</span></button>
+    <div className="product-body"><div className="product-topline"><span>{product.category}</span><i className={!product.available ? 'commerce-v2-out' : ''}>{product.status}</i></div><button className="product-title" onClick={() => onOpen(product)}><h3>{product.name}</h3></button><p>{product.description}</p><ProductPrice product={product} /><div className="product-actions"><button className="add-button" onClick={handlePrimary}>{product.available ? <><ShoppingBag size={17} /> Ajouter au panier</> : <><Phone size={17} /> Vérifier en boutique</>}</button><button className="icon-button" onClick={() => onOpen(product)} aria-label={`Voir ${product.name}`}><ArrowRight size={17} /></button></div></div>
   </motion.article>
-}
-
-function money(cents: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100)
 }
 
 function CatalogContent({ products, add, count, loading, offline }: { products: Product[]; add: (product: Product) => void; count: number; loading: boolean; offline: boolean }) {
@@ -251,7 +280,7 @@ function CatalogContent({ products, add, count, loading, offline }: { products: 
     {offline && <div className="section commerce-v2-sync-warning">Connexion au stock momentanément indisponible. Les dernières références connues restent affichées.</div>}
     <section className="catalog-tools-wrap"><div className="section catalog-tools"><label className="catalog-search"><Search size={20} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher un produit…" aria-label="Rechercher un produit" />{query && <button onClick={() => setQuery('')} aria-label="Effacer la recherche"><X size={18} /></button>}</label><div className="category-scroll" role="tablist" aria-label="Catégories">{categories.map(item => <button key={item} role="tab" aria-selected={item === category} className={item === category ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div></div></section>
     <section className="section catalog-content"><div className="results-line"><span>{loading ? 'Mise à jour…' : <><strong>{filtered.length}</strong> résultat{filtered.length > 1 ? 's' : ''}</>}</span>{count > 0 && <Link to="/click-collect">Ma liste · {count} <ArrowRight size={15} /></Link>}</div>{filtered.length ? <div className="product-grid">{filtered.map(product => <ProductCard key={product.dbId} product={product} add={add} onOpen={setSelected} />)}</div> : <div className="empty-results"><Search size={30} /><h3>Aucun produit trouvé</h3><p>Essayez un autre mot-clé ou contactez la boutique.</p><a className="button button-dark" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler la boutique</a></div>}</section>
-    <AnimatePresence>{selected && <><motion.button className="sheet-backdrop" aria-label="Fermer" onClick={() => setSelected(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="product-sheet" role="dialog" aria-modal="true" aria-label={`Détails de ${selected.name}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}><button className="sheet-close" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button><div className="sheet-image"><img src={selected.image} alt={selected.name} onError={handleImageError} /></div><div className="sheet-content"><span className="kicker">{selected.category}</span><h2>{selected.name}</h2><span className={`availability ${!selected.available ? 'commerce-v2-out' : ''}`}><i />{selected.status}</span>{selected.priceCents !== null && <strong className="commerce-v2-sheet-price">{money(selected.priceCents)}</strong>}<p>{selected.description}</p><button className="button button-dark full" onClick={() => { if (selected.available) { add(selected); setSelected(null) } else window.location.href = `tel:${shop.phoneHref}` }}>{selected.available ? <><Plus size={18} /> Ajouter à ma liste</> : <><Phone size={18} /> Vérifier la disponibilité</>}</button><a className="button button-ghost full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler AfroTarn</a></div></motion.aside></>}</AnimatePresence>
+    <AnimatePresence>{selected && <><motion.button className="sheet-backdrop" aria-label="Fermer" onClick={() => setSelected(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="product-sheet" role="dialog" aria-modal="true" aria-label={`Détails de ${selected.name}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}><button className="sheet-close" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button><div className="sheet-image"><img src={selected.image} alt={selected.name} onError={handleImageError} /></div><div className="sheet-content"><span className="kicker">{selected.promotionActive ? selected.promoLabel : selected.category}</span><h2>{selected.name}</h2><span className={`availability ${!selected.available ? 'commerce-v2-out' : ''}`}><i />{selected.status}</span><ProductPrice product={selected} sheet /><p>{selected.description}</p><button className="button button-dark full" onClick={() => { if (selected.available) { add(selected); setSelected(null) } else window.location.href = `tel:${shop.phoneHref}` }}>{selected.available ? <><ShoppingBag size={18} /> Ajouter au panier</> : <><Phone size={18} /> Vérifier la disponibilité</>}</button><a className="button button-ghost full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler AfroTarn</a></div></motion.aside></>}</AnimatePresence>
   </>
 }
 
