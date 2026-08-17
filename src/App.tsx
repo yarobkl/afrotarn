@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatePresence, MotionConfig, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion'
 import {
   ArrowRight,
   BadgeCheck,
+  ChevronRight,
   Clock3,
   CreditCard,
   Heart,
@@ -12,6 +14,7 @@ import {
   Minus,
   PackageCheck,
   Phone,
+  Plus,
   Search,
   ShoppingBag,
   Sparkles,
@@ -44,41 +47,110 @@ type Product = {
   status: string
   image: string
   accent: string
+  tag?: string
 }
 
+type ListState = Record<number, number>
+
 const products: Product[] = [
-  { id: 1, name: 'Plantain', category: 'Fruits & légumes', description: 'Vert ou mûr, pour alloco, banane frite et recettes du quotidien.', status: 'Disponible en boutique', image: PLANTAIN_IMAGE, accent: '#d6a75f' },
-  { id: 2, name: 'Manioc', category: 'Fruits & légumes', description: 'Un incontournable à cuisiner bouilli, frit ou transformé.', status: 'Selon arrivage', image: PRODUCE_IMAGE, accent: '#9c6844' },
-  { id: 3, name: 'Attiéké', category: 'Épicerie', description: 'Semoule de manioc, idéale avec poisson, poulet ou légumes.', status: 'Disponible en boutique', image: MARKET_IMAGE, accent: '#e6c88c' },
-  { id: 4, name: 'Épices & sauces', category: 'Épicerie', description: 'Des bases parfumées pour retrouver les goûts de la maison.', status: 'Large choix', image: MARKET_IMAGE, accent: '#c75234' },
-  { id: 5, name: 'Poissons', category: 'Surgelés', description: 'Tilapia et références sélectionnées selon les arrivages.', status: 'Selon arrivage', image: MARKET_IMAGE, accent: '#566b75' },
-  { id: 6, name: 'Saka-saka & feuilles', category: 'Surgelés', description: 'Feuilles et légumes africains prêts à cuisiner.', status: 'Disponible en boutique', image: PRODUCE_IMAGE, accent: '#477658' },
-  { id: 7, name: 'Karité & soins', category: 'Cosmétiques', description: 'Soins nourrissants et hydratants pour la peau et les cheveux.', status: 'Disponible en boutique', image: ESTELLE_IMAGE, accent: '#b57f5e' },
-  { id: 8, name: 'Boissons & douceurs', category: 'Boissons', description: 'Boissons, gourmandises et produits à découvrir en rayon.', status: 'Large choix', image: MARKET_IMAGE, accent: '#8f352c' },
+  { id: 1, name: 'Plantain', category: 'Fruits & légumes', description: 'Vert ou mûr, pour alloco, banane frite et recettes du quotidien.', status: 'Disponible en boutique', image: PLANTAIN_IMAGE, accent: '#d6a75f', tag: 'Incontournable' },
+  { id: 2, name: 'Manioc', category: 'Fruits & légumes', description: 'Un incontournable à cuisiner bouilli, frit ou transformé.', status: 'Selon arrivage', image: PRODUCE_IMAGE, accent: '#9c6844', tag: 'Frais' },
+  { id: 3, name: 'Attiéké', category: 'Épicerie', description: 'Semoule de manioc, idéale avec poisson, poulet ou légumes.', status: 'Disponible en boutique', image: MARKET_IMAGE, accent: '#e6c88c', tag: 'Essentiel' },
+  { id: 4, name: 'Épices & sauces', category: 'Épicerie', description: 'Des bases parfumées pour retrouver les goûts de la maison.', status: 'Large choix', image: MARKET_IMAGE, accent: '#c75234', tag: 'Cuisine' },
+  { id: 5, name: 'Poissons', category: 'Surgelés', description: 'Tilapia et références sélectionnées selon les arrivages.', status: 'Selon arrivage', image: MARKET_IMAGE, accent: '#566b75', tag: 'Surgelé' },
+  { id: 6, name: 'Saka-saka & feuilles', category: 'Surgelés', description: 'Feuilles et légumes africains prêts à cuisiner.', status: 'Disponible en boutique', image: PRODUCE_IMAGE, accent: '#477658', tag: 'Cuisine' },
+  { id: 7, name: 'Karité & soins', category: 'Cosmétiques', description: 'Soins nourrissants et hydratants pour la peau et les cheveux.', status: 'Disponible en boutique', image: ESTELLE_IMAGE, accent: '#b57f5e', tag: 'Beauté' },
+  { id: 8, name: 'Boissons & douceurs', category: 'Boissons', description: 'Boissons, gourmandises et produits à découvrir en rayon.', status: 'Large choix', image: MARKET_IMAGE, accent: '#8f352c', tag: 'À découvrir' },
 ]
 
 const categories = ['Tous', 'Fruits & légumes', 'Épicerie', 'Surgelés', 'Cosmétiques', 'Boissons']
 
-function useReveal() {
+const hours: Record<number, Array<[number, number]>> = {
+  2: [[600, 750], [870, 1200]],
+  3: [[885, 1200]],
+  4: [[600, 750], [870, 1200]],
+  5: [[645, 1200]],
+  6: [[645, 1200]],
+}
+
+function getShopStatus(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Europe/Paris', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date)
+  const weekday = parts.find(p => p.type === 'weekday')?.value.toLowerCase() ?? ''
+  const hour = Number(parts.find(p => p.type === 'hour')?.value ?? 0)
+  const minute = Number(parts.find(p => p.type === 'minute')?.value ?? 0)
+  const dayMap: Record<string, number> = { lun: 1, mar: 2, mer: 3, jeu: 4, ven: 5, sam: 6, dim: 7 }
+  const day = dayMap[weekday.slice(0, 3)] ?? 1
+  const now = hour * 60 + minute
+  const slots = hours[day] ?? []
+  const active = slots.find(([start, end]) => now >= start && now < end)
+  if (active) {
+    const endH = Math.floor(active[1] / 60)
+    const endM = active[1] % 60
+    return { open: true, label: `Ouvert jusqu’à ${endH}h${endM ? String(endM).padStart(2, '0') : ''}` }
+  }
+  const later = slots.find(([start]) => now < start)
+  if (later) {
+    const startH = Math.floor(later[0] / 60)
+    const startM = later[0] % 60
+    return { open: false, label: `Ouvre aujourd’hui à ${startH}h${startM ? String(startM).padStart(2, '0') : ''}` }
+  }
+  const labels: Record<number, string> = { 1: 'lundi', 2: 'mardi', 3: 'mercredi', 4: 'jeudi', 5: 'vendredi', 6: 'samedi', 7: 'dimanche' }
+  for (let offset = 1; offset <= 7; offset++) {
+    const nextDay = ((day - 1 + offset) % 7) + 1
+    const nextSlots = hours[nextDay]
+    if (nextSlots?.length) {
+      const start = nextSlots[0][0]
+      const startH = Math.floor(start / 60)
+      const startM = start % 60
+      return { open: false, label: `Ouvre ${labels[nextDay]} à ${startH}h${startM ? String(startM).padStart(2, '0') : ''}` }
+    }
+  }
+  return { open: false, label: 'Fermé' }
+}
+
+function useShopStatus() {
+  const [status, setStatus] = useState(() => getShopStatus())
   useEffect(() => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
-    const observer = new IntersectionObserver(
-      entries => entries.forEach(entry => entry.isIntersecting && entry.target.classList.add('is-visible')),
-      { threshold: 0.12, rootMargin: '0px 0px -40px' },
-    )
-    elements.forEach(element => observer.observe(element))
-    return () => observer.disconnect()
+    const timer = window.setInterval(() => setStatus(getShopStatus()), 60000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return status
+}
+
+function usePersistentList() {
+  const [list, setList] = useState<ListState>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('afrotarn-list') || '{}') as ListState
+    } catch {
+      return {}
+    }
   })
+  useEffect(() => localStorage.setItem('afrotarn-list', JSON.stringify(list)), [list])
+  const add = (id: number) => setList(current => ({ ...current, [id]: (current[id] || 0) + 1 }))
+  const remove = (id: number) => setList(current => {
+    const next = { ...current }
+    const qty = (next[id] || 0) - 1
+    if (qty <= 0) delete next[id]
+    else next[id] = qty
+    return next
+  })
+  const clear = () => setList({})
+  const count = Object.values(list).reduce((sum, qty) => sum + qty, 0)
+  return { list, add, remove, clear, count }
 }
 
-function ScrollToTop() {
-  const { pathname } = useLocation()
-  useEffect(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }), [pathname])
+function ScrollManager() {
+  const { pathname, hash } = useLocation()
+  useEffect(() => {
+    if (hash) {
+      window.setTimeout(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+    } else {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+  }, [pathname, hash])
   return null
-}
-
-function Reveal({ children, className = '', delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
-  return <div className={`reveal ${className}`} data-reveal style={{ '--delay': `${delay}ms` } as React.CSSProperties}>{children}</div>
 }
 
 function Wordmark() {
@@ -90,269 +162,310 @@ function Wordmark() {
   )
 }
 
-function Layout({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const location = useLocation()
-  useReveal()
+function StatusPill() {
+  const status = useShopStatus()
+  return <span className={`status-pill ${status.open ? 'is-open' : ''}`}><i />{status.label}</span>
+}
 
+function Layout({ children, listCount }: { children: ReactNode; listCount: number }) {
+  const [open, setOpen] = useState(false)
+  const [compact, setCompact] = useState(false)
+  const location = useLocation()
   useEffect(() => setOpen(false), [location.pathname])
+  useEffect(() => {
+    const onScroll = () => setCompact(window.scrollY > 18)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
     <div className="site-shell">
-      <ScrollToTop />
-      <header className="site-header">
+      <ScrollManager />
+      <header className={`site-header ${compact ? 'is-compact' : ''}`}>
         <Wordmark />
+        <div className="desktop-status"><StatusPill /></div>
         <nav className="desktop-nav" aria-label="Navigation principale">
           <NavLink to="/">Accueil</NavLink>
           <NavLink to="/produits">Produits</NavLink>
-          <NavLink to="/click-collect">Click & Collect</NavLink>
+          <NavLink to="/click-collect">Retrait</NavLink>
           <a href={shop.map}>La boutique</a>
         </nav>
-        <a className="header-cta" href={`tel:${shop.phoneHref}`}><Phone size={16} /> Appeler</a>
-        <button className="mobile-menu-button" onClick={() => setOpen(v => !v)} aria-label="Ouvrir le menu">
-          {open ? <X size={24} /> : <Menu size={24} />}
+        <Link className="header-list" to="/click-collect#liste"><ShoppingBag size={17} /><span>Ma liste</span>{listCount > 0 && <b>{listCount}</b>}</Link>
+        <button className="mobile-menu-button" onClick={() => setOpen(v => !v)} aria-label="Ouvrir le menu" aria-expanded={open}>
+          {open ? <X size={23} /> : <Menu size={23} />}
         </button>
-        <div className={`mobile-panel ${open ? 'is-open' : ''}`}>
-          <NavLink to="/">Accueil</NavLink>
-          <NavLink to="/produits">Nos produits</NavLink>
-          <NavLink to="/click-collect">Click & Collect</NavLink>
-          <a href={shop.map}>Itinéraire</a>
-          <a href={`tel:${shop.phoneHref}`}>Appeler la boutique</a>
-        </div>
+        <AnimatePresence>
+          {open && (
+            <motion.div className="mobile-panel" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: .22 }}>
+              <div className="mobile-panel-top"><StatusPill /></div>
+              <NavLink to="/">Accueil <ChevronRight size={18} /></NavLink>
+              <NavLink to="/produits">Explorer les produits <ChevronRight size={18} /></NavLink>
+              <NavLink to="/click-collect">Préparer un retrait <ChevronRight size={18} /></NavLink>
+              <a href={shop.map}>Itinéraire <ChevronRight size={18} /></a>
+              <a href={`tel:${shop.phoneHref}`}>Appeler la boutique <ChevronRight size={18} /></a>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      <main>{children}</main>
+      <main className="page-stage">{children}</main>
 
       <footer className="site-footer">
         <div className="footer-grid">
           <div className="footer-brand"><Wordmark /><p>Une épicerie de proximité pour découvrir, retrouver et cuisiner les saveurs d’Afrique à Gaillac.</p></div>
           <div><span className="footer-label">Boutique</span><p>{shop.address}</p><a href={shop.map}>Voir l’itinéraire <ArrowRight size={15} /></a></div>
           <div><span className="footer-label">Contact</span><a href={`tel:${shop.phoneHref}`}>{shop.phone}</a><a href={`mailto:${shop.email}`}>{shop.email}</a></div>
-          <div><span className="footer-label">Navigation</span><Link to="/produits">Produits</Link><Link to="/click-collect">Click & Collect</Link><Link to="/admin">Administration</Link></div>
+          <div><span className="footer-label">Parcours rapide</span><Link to="/produits">Trouver un produit</Link><Link to="/click-collect">Préparer un retrait</Link><a href={shop.map}>Venir en boutique</a></div>
         </div>
         <div className="footer-bottom"><span>© 2026 AfroTarn</span><span>Gaillac · Tarn</span></div>
       </footer>
 
-      <nav className="mobile-dock" aria-label="Actions rapides">
-        <a href={`tel:${shop.phoneHref}`}><Phone size={19} /><span>Appeler</span></a>
-        <Link to="/produits"><Search size={19} /><span>Produits</span></Link>
+      <nav className="mobile-dock" aria-label="Navigation rapide">
+        <NavLink to="/" end><Store size={19} /><span>Accueil</span></NavLink>
+        <NavLink to="/produits"><Search size={19} /><span>Produits</span></NavLink>
+        <NavLink className="dock-list" to="/click-collect#liste"><ShoppingBag size={19} /><span>Ma liste</span>{listCount > 0 && <b>{listCount}</b>}</NavLink>
         <a className="dock-primary" href={shop.map}><MapPin size={19} /><span>Venir</span></a>
       </nav>
     </div>
   )
 }
 
-function Home() {
+function ParallaxHero() {
+  const { scrollY } = useScroll()
+  const y = useTransform(scrollY, [0, 700], [0, 80])
+  const scale = useTransform(scrollY, [0, 700], [1.035, 1.09])
+  const reduced = useReducedMotion()
+  return (
+    <section className="home-hero">
+      <div className="hero-media">
+        <motion.img style={reduced ? undefined : { y, scale }} src={ESTELLE_IMAGE} alt="Estelle devant la boutique AfroTarn" />
+        <div className="hero-shade" />
+        <div className="hero-photo-tag"><span className="live-dot" /> 70 rue du Château du Roi</div>
+      </div>
+      <motion.div className="hero-copy" initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, ease: [0.22, 1, 0.36, 1] }}>
+        <div className="hero-topline"><span className="kicker">ÉPICERIE AFRICAINE · GAILLAC</span><StatusPill /></div>
+        <h1>Les saveurs d’Afrique, <em>sans détour.</em></h1>
+        <p>Vous cherchez un produit précis, une idée de recette ou simplement une bonne adresse ? AfroTarn vous guide jusqu’au bon rayon.</p>
+        <div className="hero-actions">
+          <Link className="button button-dark" to="/produits">Trouver un produit <ArrowRight size={18} /></Link>
+          <a className="button button-ghost" href={shop.map}><MapPin size={18} /> Venir en boutique</a>
+        </div>
+        <div className="hero-proof">
+          <div className="stars"><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /></div>
+          <div><strong>5,0 / 5</strong><span>Une adresse appréciée à Gaillac</span></div>
+        </div>
+      </motion.div>
+    </section>
+  )
+}
+
+function IntentBar() {
+  const intents = [
+    { icon: Search, eyebrow: 'JE CHERCHE', title: 'Un produit précis', text: 'Rechercher par nom ou catégorie.', to: '/produits' },
+    { icon: ShoppingBag, eyebrow: 'JE PRÉPARE', title: 'Un retrait', text: 'Créer une liste avant de venir.', to: '/click-collect' },
+    { icon: MapPin, eyebrow: 'JE VIENS', title: 'À la boutique', text: 'Adresse, horaires et itinéraire.', href: shop.map },
+  ]
+  return (
+    <section className="intent-shell section" aria-label="Choisir votre parcours">
+      {intents.map((item, index) => {
+        const Icon = item.icon
+        const content = <><span className="intent-icon"><Icon size={20} /></span><div><small>{item.eyebrow}</small><strong>{item.title}</strong><p>{item.text}</p></div><ArrowRight size={18} className="intent-arrow" /></>
+        return item.to ? <Link key={item.title} className="intent-card" to={item.to}>{content}</Link> : <a key={item.title} className="intent-card" href={item.href}>{content}</a>
+      })}
+    </section>
+  )
+}
+
+function Home({ addToList }: { addToList: (id: number) => void }) {
   return (
     <>
-      <section className="home-hero">
-        <div className="hero-media">
-          <img src={ESTELLE_IMAGE} alt="Estelle devant la boutique AfroTarn" />
-          <div className="hero-shade" />
-          <div className="hero-photo-tag"><span className="live-dot" /> À Gaillac, rue du Château du Roi</div>
-        </div>
-        <div className="hero-copy">
-          <span className="kicker">ÉPICERIE AFRICAINE · GAILLAC</span>
-          <h1>Les produits qui racontent <em>une histoire.</em></h1>
-          <p>Chez AfroTarn, on vient pour trouver un produit. On revient pour les conseils, les recettes et l’accueil d’Estelle.</p>
-          <div className="hero-actions">
-            <Link className="button button-dark" to="/produits">Explorer les produits <ArrowRight size={18} /></Link>
-            <a className="button button-ghost" href={shop.map}><MapPin size={18} /> Venir en boutique</a>
-          </div>
-          <div className="hero-proof">
-            <div className="stars"><Star size={17} fill="currentColor" /><Star size={17} fill="currentColor" /><Star size={17} fill="currentColor" /><Star size={17} fill="currentColor" /><Star size={17} fill="currentColor" /></div>
-            <div><strong>5,0 / 5</strong><span>Une adresse appréciée à Gaillac</span></div>
-          </div>
-        </div>
-      </section>
+      <ParallaxHero />
+      <IntentBar />
 
-      <Reveal className="marquee-wrap">
-        <div className="marquee-track">
-          <span>PLANTAINS</span><i /> <span>MANIOC</span><i /> <span>ATTIEKE</span><i /> <span>EPICES</span><i /> <span>POISSONS</span><i /> <span>KARITE</span><i /> <span>SAKA-SAKA</span><i /> <span>IGNAMES</span>
+      <section className="section home-products">
+        <motion.div className="section-intro" initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ duration: .65 }}>
+          <span className="kicker">COMMENCER SIMPLEMENT</span>
+          <h2>Les produits que l’on vient chercher <span>le plus souvent.</span></h2>
+          <p>Une première sélection pour aller droit au but. Le catalogue sera enrichi progressivement avec les références réelles du magasin.</p>
+        </motion.div>
+        <div className="home-product-grid">
+          {products.slice(0, 4).map((product, index) => <ProductCard key={product.id} product={product} compact addToList={addToList} index={index} />)}
         </div>
-      </Reveal>
-
-      <section className="section editorial-section">
-        <Reveal className="section-intro">
-          <span className="kicker">UNE ÉPICERIE À EXPLORER</span>
-          <h2>Pas des rayons anonymes. <span>Des produits à comprendre.</span></h2>
-          <p>Frais, sec, surgelé, cosmétique : la sélection s’organise par usages, envies et découvertes.</p>
-        </Reveal>
-        <div className="editorial-grid">
-          <Reveal className="editorial-card editorial-large" delay={60}>
-            <img src={PLANTAIN_IMAGE} alt="Plantains et produits d’épicerie africaine" loading="lazy" />
-            <div className="editorial-overlay"><span>Frais & essentiels</span><h3>Les incontournables du quotidien</h3><Link to="/produits">Voir la sélection <ArrowRight size={17} /></Link></div>
-          </Reveal>
-          <Reveal className="editorial-card editorial-small" delay={120}>
-            <img src={PRODUCE_IMAGE} alt="Manioc et produits frais" loading="lazy" />
-            <div className="editorial-overlay"><span>Primeur</span><h3>Manioc, ignames, piments</h3></div>
-          </Reveal>
-          <Reveal className="editorial-card editorial-small dark-card" delay={180}>
-            <div className="pattern-orb" />
-            <span className="kicker light">SERVICE</span>
-            <h3>Vous ne connaissez pas un produit ?</h3>
-            <p>Demandez à Estelle. L’usage, la cuisson et les associations font partie de l’expérience.</p>
-            <a href={`tel:${shop.phoneHref}`}>Appeler la boutique <ArrowRight size={17} /></a>
-          </Reveal>
-        </div>
+        <div className="center-action"><Link className="text-link" to="/produits">Voir tous les produits <ArrowRight size={17} /></Link></div>
       </section>
 
       <section className="section estelle-story">
-        <Reveal className="story-photo"><img src={ESTELLE_IMAGE} alt="Estelle, gérante d’AfroTarn" loading="lazy" /><span className="photo-index">01</span></Reveal>
-        <Reveal className="story-copy" delay={120}>
+        <motion.div className="story-photo" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75 }}><img src={ESTELLE_IMAGE} alt="Estelle, gérante d’AfroTarn" loading="lazy" /><span className="photo-index">01</span></motion.div>
+        <motion.div className="story-copy" initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75, delay: .08 }}>
           <span className="kicker">ESTELLE · « ESTOU »</span>
           <h2>Le conseil fait partie du produit.</h2>
-          <p className="story-lead">AfroTarn est née avec une idée simple : rendre les cuisines africaines plus accessibles, même quand on ne connaît pas encore les ingrédients.</p>
+          <p className="story-lead">AfroTarn est une boutique où l’on peut aussi demander : « Comment ça se prépare ? », « Avec quoi je le cuisine ? » ou « Quel produit choisir ? ».</p>
           <p>Une recette à retrouver, un produit découvert en voyage, une sauce à associer, un soin à choisir : Estelle accompagne, explique et transmet.</p>
-          <div className="story-signature"><span>ESTOU</span><small>AfroTarn · Gaillac</small></div>
-        </Reveal>
+          <div className="story-actions"><a className="text-link" href={`tel:${shop.phoneHref}`}>Demander un conseil <ArrowRight size={17} /></a></div>
+        </motion.div>
       </section>
 
       <section className="section shop-experience">
-        <Reveal className="experience-copy">
+        <motion.div className="experience-copy" initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .65 }}>
           <span className="kicker">EN BOUTIQUE</span>
-          <h2>Petit format. Grande richesse.</h2>
-          <p>Une adresse de quartier, dense en références, où chaque rayon ouvre une porte vers une cuisine, une habitude ou un souvenir.</p>
+          <h2>Tout ce qu’il faut, sans perdre de temps.</h2>
+          <p>Le site prépare la visite : vous repérez les produits, créez votre liste et vérifiez les informations pratiques avant de vous déplacer.</p>
           <div className="experience-features">
-            <Feature icon={ShoppingBag} title="À emporter" text="Choisissez sur place, repartez avec vos produits." />
-            <Feature icon={CreditCard} title="Paiement facile" text="Espèces, sans contact et Visa." />
-            <Feature icon={Sparkles} title="Conseils personnalisés" text="Produits, recettes, soins et usages." />
+            <Feature icon={Search} title="Trouver vite" text="Recherche instantanée et catégories simples." />
+            <Feature icon={ShoppingBag} title="Préparer sa liste" text="Gardez vos produits pour votre prochain retrait." />
+            <Feature icon={Sparkles} title="Demander conseil" text="Estelle reste au centre de l’expérience." />
           </div>
-        </Reveal>
-        <Reveal className="experience-media" delay={100}><img src={MARKET_IMAGE} alt="Ambiance d’une épicerie africaine" loading="lazy" /><div className="image-caption"><span>Épicerie</span><strong>Des essentiels aux découvertes.</strong></div></Reveal>
+        </motion.div>
+        <motion.div className="experience-media" initial={{ opacity: 0, scale: .97 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75 }}><img src={MARKET_IMAGE} alt="Ambiance d’une épicerie africaine" loading="lazy" /><div className="image-caption"><span>Épicerie</span><strong>Des essentiels aux découvertes.</strong></div></motion.div>
       </section>
 
       <section className="section practical-section">
-        <Reveal className="practical-card practical-main">
-          <div><span className="kicker">INFOS PRATIQUES</span><h2>On vous attend à Gaillac.</h2></div>
+        <motion.div className="practical-card practical-main" initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <div><span className="kicker light">INFOS PRATIQUES</span><h2>On vous attend à Gaillac.</h2><StatusPill /></div>
           <div className="practical-address"><MapPin size={24} /><div><strong>70 rue du Château du Roi</strong><span>81600 Gaillac</span></div></div>
           <div className="practical-actions"><a className="button button-light" href={shop.map}>Itinéraire <ArrowRight size={17} /></a><a className="button button-outline-light" href={`tel:${shop.phoneHref}`}>Appeler</a></div>
-        </Reveal>
-        <Reveal className="practical-card hours-card" delay={80}>
+        </motion.div>
+        <motion.div className="practical-card hours-card" initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: .08 }}>
           <div className="hours-title"><Clock3 size={22} /><h3>Horaires</h3></div>
           <div className="hours-list"><div><span>Mar</span><strong>10h–12h30 · 14h30–20h</strong></div><div><span>Mer</span><strong>14h45–20h</strong></div><div><span>Jeu</span><strong>10h–12h30 · 14h30–20h</strong></div><div><span>Ven</span><strong>10h45–20h</strong></div><div><span>Sam</span><strong>10h45–20h</strong></div><div className="closed"><span>Lun & Dim</span><strong>Fermé</strong></div></div>
-        </Reveal>
-      </section>
-
-      <section className="section click-teaser">
-        <Reveal className="click-content">
-          <span className="kicker">BIENTÔT · CLICK & COLLECT</span>
-          <h2>Préparez votre panier. Passez seulement pour le plaisir.</h2>
-          <p>Le catalogue est conçu pour évoluer vers la réservation et le retrait en boutique, sans transformer AfroTarn en supermarché impersonnel.</p>
-          <Link className="button button-dark" to="/click-collect">Découvrir le parcours <ArrowRight size={18} /></Link>
-        </Reveal>
-        <Reveal className="click-steps" delay={90}>
-          <Step number="01" title="Je choisis" text="Je trouve les références disponibles." />
-          <Step number="02" title="AfroTarn confirme" text="La boutique prépare la commande." />
-          <Step number="03" title="Je retire" text="Je passe récupérer sur place." />
-        </Reveal>
+        </motion.div>
       </section>
     </>
   )
 }
 
-function Feature({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
-  return <div className="feature"><Icon size={20} /><div><strong>{title}</strong><span>{text}</span></div></div>
+function ProductCard({ product, addToList, compact = false, index = 0, onOpen }: { product: Product; addToList: (id: number) => void; compact?: boolean; index?: number; onOpen?: (product: Product) => void }) {
+  return (
+    <motion.article className={`product-card ${compact ? 'is-compact-card' : ''}`} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .12 }} transition={{ duration: .55, delay: Math.min(index * .05, .2) }} whileHover={{ y: -4 }}>
+      <button className="product-visual" onClick={() => onOpen?.(product)} aria-label={`Voir ${product.name}`} style={{ '--accent': product.accent } as React.CSSProperties}>
+        <img src={product.image} alt="" loading="lazy" />
+        <span className="product-tag">{product.tag}</span>
+      </button>
+      <div className="product-body">
+        <div className="product-topline"><span>{product.category}</span><i>{product.status}</i></div>
+        <button className="product-title" onClick={() => onOpen?.(product)}><h3>{product.name}</h3></button>
+        <p>{product.description}</p>
+        <div className="product-actions"><button className="add-button" onClick={() => addToList(product.id)}><Plus size={17} /> Ajouter à ma liste</button>{onOpen && <button className="icon-button" onClick={() => onOpen(product)} aria-label="Voir le détail"><ArrowRight size={17} /></button>}</div>
+      </div>
+    </motion.article>
+  )
 }
 
-function Step({ number, title, text }: { number: string; title: string; text: string }) {
-  return <div className="click-step"><span>{number}</span><div><strong>{title}</strong><p>{text}</p></div></div>
+function ProductSheet({ product, onClose, addToList }: { product: Product | null; onClose: () => void; addToList: (id: number) => void }) {
+  useEffect(() => {
+    if (!product) return
+    const old = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = old }
+  }, [product])
+  return (
+    <AnimatePresence>
+      {product && <>
+        <motion.button className="sheet-backdrop" aria-label="Fermer" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+        <motion.aside className="product-sheet" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
+          <button className="sheet-close" onClick={onClose} aria-label="Fermer"><X size={20} /></button>
+          <div className="sheet-image"><img src={product.image} alt={product.name} /></div>
+          <div className="sheet-content"><span className="kicker">{product.category}</span><h2>{product.name}</h2><span className="availability"><i />{product.status}</span><p>{product.description}</p><div className="sheet-tip"><Sparkles size={18} /><div><strong>Besoin d’un conseil ?</strong><span>Estelle peut vous guider sur l’usage et la préparation.</span></div></div><button className="button button-dark full" onClick={() => { addToList(product.id); onClose() }}><Plus size={18} /> Ajouter à ma liste</button><a className="button button-ghost full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler AfroTarn</a></div>
+        </motion.aside>
+      </>}
+    </AnimatePresence>
+  )
 }
 
-function Products() {
-  const [category, setCategory] = useState('Tous')
+function Products({ addToList, listCount }: { addToList: (id: number) => void; listCount: number }) {
   const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('Tous')
   const [selected, setSelected] = useState<Product | null>(null)
-
-  const filtered = useMemo(() => products.filter(product => {
-    const categoryMatches = category === 'Tous' || product.category === category
-    const searchMatches = product.name.toLowerCase().includes(query.toLowerCase()) || product.description.toLowerCase().includes(query.toLowerCase())
-    return categoryMatches && searchMatches
-  }), [category, query])
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    return products.filter(product => (category === 'Tous' || product.category === category) && (!normalized || `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(normalized)))
+  }, [query, category])
 
   return (
-    <section className="catalog-page">
-      <div className="catalog-hero section">
-        <Reveal><span className="kicker">CATALOGUE AFROTARN</span><h1>Des produits à retrouver.<br /><span>Et d’autres à découvrir.</span></h1></Reveal>
-        <Reveal className="catalog-search-wrap" delay={80}><Search size={20} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher : attiéké, manioc, karité…" /></Reveal>
-      </div>
+    <div className="catalog-page">
+      <section className="section catalog-hero">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .55 }}><span className="kicker">CATALOGUE AFROTARN</span><h1>Trouvez d’abord. <em>Venez ensuite.</em></h1></motion.div>
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .15 }}>Le catalogue est pensé pour préparer votre visite : recherchez un produit, gardez-le dans votre liste, puis confirmez sa disponibilité si besoin.</motion.p>
+      </section>
 
-      <div className="catalog-toolbar section">
-        <div className="category-tabs">{categories.map(item => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
-        <span className="result-count">{filtered.length} références présentées</span>
-      </div>
+      <section className="catalog-tools-wrap">
+        <div className="section catalog-tools">
+          <label className="catalog-search"><Search size={20} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher : plantain, manioc, karité…" autoComplete="off" />{query && <button onClick={() => setQuery('')} aria-label="Effacer"><X size={18} /></button>}</label>
+          <div className="category-scroll" role="tablist" aria-label="Catégories">{categories.map(item => <button key={item} className={item === category ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+        </div>
+      </section>
 
-      <div className="product-gallery section">
-        {filtered.map((product, index) => (
-          <Reveal key={product.id} delay={(index % 4) * 45} className="product-tile">
-            <button className="product-visual" onClick={() => setSelected(product)}>
-              <img src={product.image} alt={product.name} loading="lazy" />
-              <span className="product-status">{product.status}</span>
-              <span className="product-number">0{product.id}</span>
-            </button>
-            <div className="product-copy"><span>{product.category}</span><h2>{product.name}</h2><p>{product.description}</p><button onClick={() => setSelected(product)}>Découvrir <ArrowRight size={16} /></button></div>
-          </Reveal>
-        ))}
-      </div>
-
-      <div className="catalog-note section"><BadgeCheck size={22} /><p><strong>Catalogue évolutif.</strong> Les références et prix seront ensuite pilotés depuis l’espace administrateur AfroTarn, sans toucher au code.</p></div>
-
-      {selected && <div className="product-drawer-backdrop" onClick={() => setSelected(null)}><aside className="product-drawer" onClick={e => e.stopPropagation()}><button className="drawer-close" onClick={() => setSelected(null)}><X size={21} /></button><div className="drawer-image"><img src={selected.image} alt={selected.name} /></div><span className="kicker">{selected.category}</span><h2>{selected.name}</h2><p>{selected.description}</p><div className="drawer-status"><PackageCheck size={19} /><span>{selected.status}</span></div><a className="button button-dark" href={`tel:${shop.phoneHref}`}>Vérifier en boutique <Phone size={17} /></a></aside></div>}
-    </section>
+      <section className="section catalog-content">
+        <div className="results-line"><span><strong>{filtered.length}</strong> résultat{filtered.length > 1 ? 's' : ''}</span>{listCount > 0 && <Link to="/click-collect#liste">Ma liste · {listCount} produit{listCount > 1 ? 's' : ''} <ArrowRight size={15} /></Link>}</div>
+        {filtered.length > 0 ? <div className="product-grid">{filtered.map((product, index) => <ProductCard key={product.id} product={product} addToList={addToList} index={index} onOpen={setSelected} />)}</div> : <div className="empty-results"><Search size={30} /><h3>Aucun produit trouvé</h3><p>Essayez un autre mot-clé ou appelez la boutique : Estelle pourra vous renseigner.</p><a className="button button-dark" href={`tel:${shop.phoneHref}`}>Appeler la boutique</a></div>}
+      </section>
+      <ProductSheet product={selected} onClose={() => setSelected(null)} addToList={addToList} />
+      <AnimatePresence>{listCount > 0 && <motion.div className="floating-list" initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}><div><ShoppingBag size={18} /><span><strong>{listCount}</strong> dans ma liste</span></div><Link to="/click-collect#liste">Continuer <ArrowRight size={16} /></Link></motion.div>}</AnimatePresence>
+    </div>
   )
 }
 
-function ClickCollect() {
+function ClickCollect({ list, add, remove, clear }: { list: ListState; add: (id: number) => void; remove: (id: number) => void; clear: () => void }) {
+  const selected = products.filter(product => list[product.id])
+  const count = selected.reduce((sum, product) => sum + (list[product.id] || 0), 0)
+  const subject = encodeURIComponent('Demande de retrait AfroTarn')
+  const body = encodeURIComponent(`Bonjour AfroTarn,\n\nJe souhaite vérifier la disponibilité des produits suivants :\n${selected.map(product => `- ${product.name} x${list[product.id]}`).join('\n')}\n\nMerci de me confirmer la disponibilité et le retrait en boutique.\n`)
+  const mailto = `mailto:${shop.email}?subject=${subject}&body=${body}`
+
   return (
-    <section className="click-page section">
-      <Reveal className="click-page-head"><span className="kicker">CLICK & COLLECT · VISION PRODUIT</span><h1>Commander en ligne.<br /><span>Retirer humainement.</span></h1><p>Le futur parcours gardera ce qui fait la force d’AfroTarn : une commande simple, puis un retrait et un échange en boutique.</p></Reveal>
-      <div className="click-page-grid">
-        <Reveal className="click-process">
-          <Step number="01" title="Je compose mon panier" text="Produits disponibles, recherche rapide et catégories simples." />
-          <Step number="02" title="Je choisis mon retrait" text="Un créneau ou une confirmation de disponibilité." />
-          <Step number="03" title="La boutique prépare" text="Le stock Click & Collect est réservé automatiquement." />
-          <Step number="04" title="Je retire chez AfroTarn" text="Pas d’attente inutile. La commande est prête." />
-        </Reveal>
-        <Reveal className="click-manifesto" delay={100}>
-          <ShoppingBag size={34} />
-          <h2>Pas un “Amazon africain”.</h2>
-          <p>Le Click & Collect restera un service secondaire : pratique pour les habitués, rassurant pour les nouveaux clients, mais toujours connecté à la vraie boutique.</p>
-          <div className="manifesto-tags"><span>Stock dédié</span><span>Confirmation boutique</span><span>Retrait local</span></div>
-        </Reveal>
-      </div>
-    </section>
+    <div className="click-page">
+      <section className="click-hero section">
+        <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}><span className="kicker">RETRAIT EN BOUTIQUE</span><h1>Préparez votre visite. <em>On s’occupe du reste.</em></h1><p>Ajoutez vos produits à une liste, envoyez votre demande, puis attendez la confirmation de la boutique avant de vous déplacer.</p></motion.div>
+        <div className="journey-steps"><div className={count ? 'done' : 'active'}><span>1</span><strong>Je sélectionne</strong><small>{count ? `${count} produit${count > 1 ? 's' : ''}` : 'Ma liste'}</small></div><div className={count ? 'active' : ''}><span>2</span><strong>AfroTarn confirme</strong><small>Disponibilité</small></div><div><span>3</span><strong>Je retire</strong><small>En boutique</small></div></div>
+      </section>
+
+      <section className="section list-layout" id="liste">
+        <div className="list-panel">
+          <div className="list-panel-head"><div><span className="kicker">MA LISTE</span><h2>{count ? `${count} produit${count > 1 ? 's' : ''} à vérifier` : 'Votre liste est vide'}</h2></div>{count > 0 && <button className="clear-button" onClick={clear}>Vider</button>}</div>
+          {selected.length ? <div className="list-items">{selected.map(product => <div className="list-item" key={product.id}><img src={product.image} alt="" /><div className="list-copy"><strong>{product.name}</strong><span>{product.status}</span></div><div className="qty-control"><button onClick={() => remove(product.id)} aria-label={`Retirer un ${product.name}`}><Minus size={16} /></button><b>{list[product.id]}</b><button onClick={() => add(product.id)} aria-label={`Ajouter un ${product.name}`}><Plus size={16} /></button></div></div>)}</div> : <div className="empty-list"><ShoppingBag size={32} /><p>Commencez par ajouter les produits que vous souhaitez trouver ou réserver.</p><Link className="button button-dark" to="/produits">Explorer les produits</Link></div>}
+        </div>
+
+        <aside className="confirmation-card">
+          <span className="kicker light">CONFIRMATION</span>
+          <h2>Avant de venir</h2>
+          <p>Les stocks magasin peuvent évoluer dans la journée. Envoyez votre liste pour demander une confirmation à AfroTarn.</p>
+          <div className="confirmation-points"><div><BadgeCheck size={19} /><span>Votre liste est préremplie dans l’e-mail.</span></div><div><Clock3 size={19} /><span>Attendez la réponse de la boutique avant le retrait.</span></div><div><MapPin size={19} /><span>Retrait au 70 rue du Château du Roi.</span></div></div>
+          {count > 0 ? <a className="button button-light full" href={mailto}><Mail size={18} /> Envoyer ma demande</a> : <Link className="button button-light full" to="/produits"><Search size={18} /> Choisir mes produits</Link>}
+          <a className="button button-outline-light full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler directement</a>
+          <small className="confirmation-note">Le paiement en ligne pourra être activé plus tard. Pour l’instant, cette étape sert à préparer et confirmer votre retrait.</small>
+        </aside>
+      </section>
+    </div>
   )
+}
+
+function Feature({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return <div className="feature"><Icon /><div><strong>{title}</strong><span>{text}</span></div></div>
 }
 
 function Admin() {
-  const rows = [
-    ['Attiéké 500 g', 'Épicerie', '12', 'En ligne'],
-    ['Farine de manioc', 'Épicerie', '8', 'En ligne'],
-    ['Huile de palme', 'Épicerie', '2', 'Stock faible'],
-    ['Plantain', 'Fruits & légumes', 'Variable', 'Boutique'],
-  ]
-  return (
-    <section className="admin-page section">
-      <Reveal className="admin-title"><span className="kicker">ESPACE DE GESTION · PROTOTYPE</span><h1>Bonjour Estelle.</h1><p>La future administration permettra de gérer les produits, prix, stocks et commandes depuis un téléphone.</p></Reveal>
-      <div className="admin-metrics"><Reveal><strong>50</strong><span>produits V1</span></Reveal><Reveal delay={50}><strong>6</strong><span>stocks à surveiller</span></Reveal><Reveal delay={100}><strong>4</strong><span>commandes du jour</span></Reveal></div>
-      <Reveal className="admin-table-wrap">
-        <div className="admin-table-head"><div><h2>Produits & stocks</h2><p>Mise à jour rapide sans toucher au site.</p></div><button><ShoppingBag size={17} /> Ajouter</button></div>
-        <div className="admin-table">{rows.map(([name, cat, stock, status]) => <div className="admin-line" key={name}><div><strong>{name}</strong><span>{cat}</span></div><div><small>Stock</small><strong>{stock}</strong></div><div><small>Statut</small><strong>{status}</strong></div><button>Modifier</button></div>)}</div>
-      </Reveal>
-    </section>
-  )
+  return <section className="section admin-page"><div className="admin-title"><span className="kicker">ESPACE DE GESTION · PROTOTYPE</span><h1>Administration AfroTarn</h1><p>La prochaine étape sera de connecter cet espace à Supabase pour gérer les vrais produits, stocks, disponibilités et demandes de retrait.</p></div><div className="admin-preview"><div className="admin-stat"><span>Produits</span><strong>08</strong><small>Catalogue démo</small></div><div className="admin-stat"><span>Liste client</span><strong>✓</strong><small>Active côté navigateur</small></div><div className="admin-stat"><span>Base de données</span><strong>—</strong><small>À connecter</small></div></div></section>
 }
 
 export default function App() {
+  const location = useLocation()
+  const { list, add, remove, clear, count } = usePersistentList()
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/produits" element={<Products />} />
-        <Route path="/click-collect" element={<ClickCollect />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+    <MotionConfig reducedMotion="user" transition={{ duration: .35, ease: [0.22, 1, 0.36, 1] }}>
+      <Layout listCount={count}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={location.pathname} className="route-transition" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .28 }}>
+            <Routes location={location}>
+              <Route path="/" element={<Home addToList={add} />} />
+              <Route path="/produits" element={<Products addToList={add} listCount={count} />} />
+              <Route path="/click-collect" element={<ClickCollect list={list} add={add} remove={remove} clear={clear} />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </motion.div>
+        </AnimatePresence>
+      </Layout>
+    </MotionConfig>
   )
 }
