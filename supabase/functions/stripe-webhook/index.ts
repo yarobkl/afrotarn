@@ -53,6 +53,31 @@ async function dispatchEmail(outboxId: string) {
   if (!response.ok) console.error('Email dispatch failed', await response.text())
 }
 
+async function ensurePaymentEmail(order: any) {
+  if (!order?.customer_email) return
+
+  const { data: existing } = await supabase
+    .from('email_outbox')
+    .select('id,status')
+    .eq('order_id', order.id)
+    .eq('template', 'payment_confirmed')
+    .maybeSingle()
+
+  if (existing) {
+    if (existing.status === 'pending' || existing.status === 'failed') await dispatchEmail(existing.id)
+    return
+  }
+
+  const { data: outbox, error } = await supabase.from('email_outbox').insert({
+    order_id: order.id,
+    template: 'payment_confirmed',
+    recipient: order.customer_email,
+    payload: { order_number: order.order_number },
+  }).select('id').single()
+
+  if (!error && outbox) await dispatchEmail(outbox.id)
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
   if (!STRIPE_WEBHOOK_SECRET) return Response.json({ error: 'STRIPE_WEBHOOK_SECRET missing' }, { status: 503 })
@@ -65,7 +90,13 @@ Deno.serve(async (req: Request) => {
     return Response.json({ error: 'Invalid Stripe signature' }, { status: 400 })
   }
 
-  const event = JSON.parse(rawBody)
+  let event: any
+  try {
+    event = JSON.parse(rawBody)
+  } catch {
+    return Response.json({ error: 'Invalid Stripe payload' }, { status: 400 })
+  }
+
   if (event.type !== 'checkout.session.completed' && event.type !== 'checkout.session.async_payment_succeeded') {
     return Response.json({ received: true })
   }
@@ -81,10 +112,17 @@ Deno.serve(async (req: Request) => {
     .select('*')
     .eq('id', orderId)
     .single()
-  if (lookupError) return Response.json({ error: lookupError.message }, { status: 400 })
+  if (lookupError || !existing) return Response.json({ error: lookupError?.message || 'Order not found' }, { status: 400 })
 
-  // Idempotent: Stripe may retry webhooks.
+  const customerEmail = session.customer_details?.email || session.customer_email || existing.customer_email || null
+
   if (['paid', 'preparing', 'ready', 'collected'].includes(existing.status)) {
+    if (!existing.customer_email && customerEmail) {
+      const { data: repaired } = await supabase.from('orders').update({ customer_email: customerEmail }).eq('id', orderId).select('*').single()
+      if (repaired) await ensurePaymentEmail(repaired)
+    } else {
+      await ensurePaymentEmail(existing)
+    }
     return Response.json({ received: true, duplicate: true, order_number: existing.order_number })
   }
 
@@ -95,6 +133,7 @@ Deno.serve(async (req: Request) => {
     .from('orders')
     .update({
       status: 'paid',
+      customer_email: customerEmail,
       paid_at: new Date().toISOString(),
       stripe_checkout_session_id: session.id,
       stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
@@ -113,14 +152,7 @@ Deno.serve(async (req: Request) => {
     metadata: { stripe_event_id: event.id, stripe_checkout_session_id: session.id },
   })
 
-  const { data: outbox, error: outboxError } = await supabase.from('email_outbox').insert({
-    order_id: order.id,
-    template: 'payment_confirmed',
-    recipient: order.customer_email,
-    payload: { order_number: order.order_number },
-  }).select('*').single()
-
-  if (!outboxError && outbox) await dispatchEmail(outbox.id)
+  await ensurePaymentEmail(order)
 
   return Response.json({ received: true, order_number: order.order_number })
 })
