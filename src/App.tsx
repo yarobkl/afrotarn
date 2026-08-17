@@ -479,9 +479,20 @@ function ClickCollect({ list, add, remove, clear }: { list: ListState; add: (id:
           <h2>Avant de venir</h2>
           <p>Les stocks magasin peuvent évoluer dans la journée. Envoyez votre liste pour demander une confirmation à AfroTarn.</p>
           <div className="confirmation-points"><div><BadgeCheck size={19} /><span>Votre liste est préremplie dans l’e-mail.</span></div><div><Clock3 size={19} /><span>Attendez la réponse de la boutique avant le retrait.</span></div><div><MapPin size={19} /><span>Retrait au 70 rue du Château du Roi.</span></div></div>
+
+          <div className="payment-preview" aria-label="Aperçu des moyens de paiement bientôt disponibles">
+            <div className="payment-preview-head"><strong>Paiement en ligne</strong><span>Bientôt disponible</span></div>
+            <div className="payment-methods">
+              <button className="payment-method apple-pay" type="button" disabled aria-label="Apple Pay bientôt disponible">Apple Pay</button>
+              <button className="payment-method google-pay" type="button" disabled aria-label="Google Pay bientôt disponible">Google Pay</button>
+              <button className="payment-method card-pay" type="button" disabled aria-label="Carte bancaire bientôt disponible"><CreditCard size={17} /> Carte</button>
+            </div>
+            <div className="payment-secure-note"><BadgeCheck size={15} /><span>Paiement sécurisé via Stripe lors de l’activation.</span></div>
+          </div>
+
           {count > 0 ? <a className="button button-light full" href={mailto}><Mail size={18} /> Envoyer ma demande</a> : <Link className="button button-light full" to="/produits"><Search size={18} /> Choisir mes produits</Link>}
           <a className="button button-outline-light full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler directement</a>
-          <small className="confirmation-note">Le paiement en ligne pourra être activé plus tard. Pour l’instant, cette étape sert à préparer et confirmer votre retrait.</small>
+          <small className="confirmation-note">Le paiement en ligne n’est pas encore actif. Les boutons Apple Pay, Google Pay et carte préparent simplement l’interface avant la connexion Stripe.</small>
         </aside>
       </section>
     </div>
