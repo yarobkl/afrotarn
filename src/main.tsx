@@ -10,6 +10,7 @@ import './stability.css'
 import './payment-flow.css'
 import './error.css'
 import './mobile-dock-fix.css'
+import './home-live-commerce'
 
 type ErrorBoundaryState = { hasError: boolean }
 
