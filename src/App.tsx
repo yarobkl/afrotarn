@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion'
 import {
@@ -7,13 +7,10 @@ import {
   ChevronRight,
   Clock3,
   CreditCard,
-  Heart,
   Mail,
   MapPin,
   Menu,
   Minus,
-  PackageCheck,
-  Phone,
   Plus,
   Search,
   ShoppingBag,
@@ -28,6 +25,7 @@ const ESTELLE_IMAGE = 'https://images.ladepeche.fr/api/v1/images/view/652caa122b
 const MARKET_IMAGE = 'https://kamarasfoods.info/assets/store-interior-DskP_A47.jpg'
 const PLANTAIN_IMAGE = 'https://hamburg.mitvergnuegen.com/wp-content/uploads/sites/2/2017/04/afro-shop3-afrikiko-bild-von-lisa.jpg'
 const PRODUCE_IMAGE = 'https://plantbasednews.org/app/uploads/2025/05/african-heritage-diet-study-3-2048x1380.jpeg'
+const FALLBACK_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900"><rect width="1200" height="900" fill="#123c2d"/><circle cx="600" cy="400" r="150" fill="none" stroke="#d9a55a" stroke-width="3" opacity=".6"/><text x="600" y="430" fill="#f3eee6" text-anchor="middle" font-family="Georgia,serif" font-size="82">AFROTARN</text><text x="600" y="495" fill="#d9a55a" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" letter-spacing="8">GAILLAC</text></svg>')}`
 
 const shop = {
   name: 'AFROTARN',
@@ -64,6 +62,7 @@ const products: Product[] = [
 ]
 
 const categories = ['Tous', 'Fruits & légumes', 'Épicerie', 'Surgelés', 'Cosmétiques', 'Boissons']
+const validProductIds = new Set(products.map(product => product.id))
 
 const hours: Record<number, Array<[number, number]>> = {
   2: [[600, 750], [870, 1200]],
@@ -71,6 +70,14 @@ const hours: Record<number, Array<[number, number]>> = {
   4: [[600, 750], [870, 1200]],
   5: [[645, 1200]],
   6: [[645, 1200]],
+}
+
+function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
+  const image = event.currentTarget
+  if (image.dataset.fallback === '1') return
+  image.dataset.fallback = '1'
+  image.removeAttribute('srcset')
+  image.src = FALLBACK_IMAGE
 }
 
 function getShopStatus(date = new Date()) {
@@ -119,16 +126,32 @@ function useShopStatus() {
   return status
 }
 
-function usePersistentList() {
-  const [list, setList] = useState<ListState>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('afrotarn-list') || '{}') as ListState
-    } catch {
-      return {}
+function readStoredList(): ListState {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem('afrotarn-list') || '{}') as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const safe: ListState = {}
+    for (const [key, rawQty] of Object.entries(parsed)) {
+      const id = Number(key)
+      const qty = Math.floor(Number(rawQty))
+      if (validProductIds.has(id) && Number.isFinite(qty) && qty > 0) safe[id] = Math.min(qty, 99)
     }
-  })
-  useEffect(() => localStorage.setItem('afrotarn-list', JSON.stringify(list)), [list])
-  const add = (id: number) => setList(current => ({ ...current, [id]: (current[id] || 0) + 1 }))
+    return safe
+  } catch {
+    return {}
+  }
+}
+
+function usePersistentList() {
+  const [list, setList] = useState<ListState>(readStoredList)
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('afrotarn-list', JSON.stringify(list))
+    } catch {
+      // Storage may be unavailable in private/restricted browser contexts.
+    }
+  }, [list])
+  const add = (id: number) => setList(current => ({ ...current, [id]: Math.min((current[id] || 0) + 1, 99) }))
   const remove = (id: number) => setList(current => {
     const next = { ...current }
     const qty = (next[id] || 0) - 1
@@ -143,13 +166,22 @@ function usePersistentList() {
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
+  const reduced = useReducedMotion()
   useEffect(() => {
-    if (hash) {
-      window.setTimeout(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-    } else {
+    if (!hash) {
       window.scrollTo({ top: 0, behavior: 'auto' })
+      return
     }
-  }, [pathname, hash])
+    const timer = window.setTimeout(() => {
+      try {
+        const id = decodeURIComponent(hash.slice(1))
+        document.getElementById(id)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+      } catch {
+        window.scrollTo({ top: 0, behavior: 'auto' })
+      }
+    }, 80)
+    return () => window.clearTimeout(timer)
+  }, [pathname, hash, reduced])
   return null
 }
 
@@ -178,6 +210,14 @@ function Layout({ children, listCount }: { children: ReactNode; listCount: numbe
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   return (
     <div className="site-shell">
@@ -192,7 +232,7 @@ function Layout({ children, listCount }: { children: ReactNode; listCount: numbe
           <a href={shop.map}>La boutique</a>
         </nav>
         <Link className="header-list" to="/click-collect#liste"><ShoppingBag size={17} /><span>Ma liste</span>{listCount > 0 && <b>{listCount}</b>}</Link>
-        <button className="mobile-menu-button" onClick={() => setOpen(v => !v)} aria-label="Ouvrir le menu" aria-expanded={open}>
+        <button className="mobile-menu-button" onClick={() => setOpen(v => !v)} aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={open}>
           {open ? <X size={23} /> : <Menu size={23} />}
         </button>
         <AnimatePresence>
@@ -239,7 +279,7 @@ function ParallaxHero() {
   return (
     <section className="home-hero">
       <div className="hero-media">
-        <motion.img style={reduced ? undefined : { y, scale }} src={ESTELLE_IMAGE} alt="Estelle devant la boutique AfroTarn" />
+        <motion.img style={reduced ? undefined : { y, scale }} src={ESTELLE_IMAGE} alt="Estelle devant la boutique AfroTarn" onError={handleImageError} decoding="async" fetchPriority="high" />
         <div className="hero-shade" />
         <div className="hero-photo-tag"><span className="live-dot" /> 70 rue du Château du Roi</div>
       </div>
@@ -268,7 +308,7 @@ function IntentBar() {
   ]
   return (
     <section className="intent-shell section" aria-label="Choisir votre parcours">
-      {intents.map((item, index) => {
+      {intents.map(item => {
         const Icon = item.icon
         const content = <><span className="intent-icon"><Icon size={20} /></span><div><small>{item.eyebrow}</small><strong>{item.title}</strong><p>{item.text}</p></div><ArrowRight size={18} className="intent-arrow" /></>
         return item.to ? <Link key={item.title} className="intent-card" to={item.to}>{content}</Link> : <a key={item.title} className="intent-card" href={item.href}>{content}</a>
@@ -296,7 +336,7 @@ function Home({ addToList }: { addToList: (id: number) => void }) {
       </section>
 
       <section className="section estelle-story">
-        <motion.div className="story-photo" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75 }}><img src={ESTELLE_IMAGE} alt="Estelle, gérante d’AfroTarn" loading="lazy" /><span className="photo-index">01</span></motion.div>
+        <motion.div className="story-photo" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75 }}><img src={ESTELLE_IMAGE} alt="Estelle, gérante d’AfroTarn" loading="lazy" decoding="async" onError={handleImageError} /><span className="photo-index">01</span></motion.div>
         <motion.div className="story-copy" initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75, delay: .08 }}>
           <span className="kicker">ESTELLE · « ESTOU »</span>
           <h2>Le conseil fait partie du produit.</h2>
@@ -317,7 +357,7 @@ function Home({ addToList }: { addToList: (id: number) => void }) {
             <Feature icon={Sparkles} title="Demander conseil" text="Estelle reste au centre de l’expérience." />
           </div>
         </motion.div>
-        <motion.div className="experience-media" initial={{ opacity: 0, scale: .97 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75 }}><img src={MARKET_IMAGE} alt="Ambiance d’une épicerie africaine" loading="lazy" /><div className="image-caption"><span>Épicerie</span><strong>Des essentiels aux découvertes.</strong></div></motion.div>
+        <motion.div className="experience-media" initial={{ opacity: 0, scale: .97 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: .2 }} transition={{ duration: .75 }}><img src={MARKET_IMAGE} alt="Ambiance d’une épicerie africaine" loading="lazy" decoding="async" onError={handleImageError} /><div className="image-caption"><span>Épicerie</span><strong>Des essentiels aux découvertes.</strong></div></motion.div>
       </section>
 
       <section className="section practical-section">
@@ -339,7 +379,7 @@ function ProductCard({ product, addToList, compact = false, index = 0, onOpen }:
   return (
     <motion.article className={`product-card ${compact ? 'is-compact-card' : ''}`} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .12 }} transition={{ duration: .55, delay: Math.min(index * .05, .2) }} whileHover={{ y: -4 }}>
       <button className="product-visual" onClick={() => onOpen?.(product)} aria-label={`Voir ${product.name}`} style={{ '--accent': product.accent } as React.CSSProperties}>
-        <img src={product.image} alt="" loading="lazy" />
+        <img src={product.image} alt="" loading="lazy" decoding="async" onError={handleImageError} />
         <span className="product-tag">{product.tag}</span>
       </button>
       <div className="product-body">
@@ -357,15 +397,22 @@ function ProductSheet({ product, onClose, addToList }: { product: Product | null
     if (!product) return
     const old = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = old }
-  }, [product])
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = old
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [product, onClose])
   return (
     <AnimatePresence>
       {product && <>
         <motion.button className="sheet-backdrop" aria-label="Fermer" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
-        <motion.aside className="product-sheet" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
+        <motion.aside className="product-sheet" role="dialog" aria-modal="true" aria-label={`Détails de ${product.name}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
           <button className="sheet-close" onClick={onClose} aria-label="Fermer"><X size={20} /></button>
-          <div className="sheet-image"><img src={product.image} alt={product.name} /></div>
+          <div className="sheet-image"><img src={product.image} alt={product.name} decoding="async" onError={handleImageError} /></div>
           <div className="sheet-content"><span className="kicker">{product.category}</span><h2>{product.name}</h2><span className="availability"><i />{product.status}</span><p>{product.description}</p><div className="sheet-tip"><Sparkles size={18} /><div><strong>Besoin d’un conseil ?</strong><span>Estelle peut vous guider sur l’usage et la préparation.</span></div></div><button className="button button-dark full" onClick={() => { addToList(product.id); onClose() }}><Plus size={18} /> Ajouter à ma liste</button><a className="button button-ghost full" href={`tel:${shop.phoneHref}`}><Phone size={18} /> Appeler AfroTarn</a></div>
         </motion.aside>
       </>}
@@ -391,13 +438,13 @@ function Products({ addToList, listCount }: { addToList: (id: number) => void; l
 
       <section className="catalog-tools-wrap">
         <div className="section catalog-tools">
-          <label className="catalog-search"><Search size={20} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher : plantain, manioc, karité…" autoComplete="off" />{query && <button onClick={() => setQuery('')} aria-label="Effacer"><X size={18} /></button>}</label>
-          <div className="category-scroll" role="tablist" aria-label="Catégories">{categories.map(item => <button key={item} className={item === category ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+          <label className="catalog-search"><Search size={20} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher : plantain, manioc, karité…" autoComplete="off" aria-label="Rechercher un produit" />{query && <button onClick={() => setQuery('')} aria-label="Effacer"><X size={18} /></button>}</label>
+          <div className="category-scroll" role="tablist" aria-label="Catégories">{categories.map(item => <button key={item} role="tab" aria-selected={item === category} className={item === category ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
         </div>
       </section>
 
       <section className="section catalog-content">
-        <div className="results-line"><span><strong>{filtered.length}</strong> résultat{filtered.length > 1 ? 's' : ''}</span>{listCount > 0 && <Link to="/click-collect#liste">Ma liste · {listCount} produit{listCount > 1 ? 's' : ''} <ArrowRight size={15} /></Link>}</div>
+        <div className="results-line" aria-live="polite"><span><strong>{filtered.length}</strong> résultat{filtered.length > 1 ? 's' : ''}</span>{listCount > 0 && <Link to="/click-collect#liste">Ma liste · {listCount} produit{listCount > 1 ? 's' : ''} <ArrowRight size={15} /></Link>}</div>
         {filtered.length > 0 ? <div className="product-grid">{filtered.map((product, index) => <ProductCard key={product.id} product={product} addToList={addToList} index={index} onOpen={setSelected} />)}</div> : <div className="empty-results"><Search size={30} /><h3>Aucun produit trouvé</h3><p>Essayez un autre mot-clé ou appelez la boutique : Estelle pourra vous renseigner.</p><a className="button button-dark" href={`tel:${shop.phoneHref}`}>Appeler la boutique</a></div>}
       </section>
       <ProductSheet product={selected} onClose={() => setSelected(null)} addToList={addToList} />
@@ -423,7 +470,7 @@ function ClickCollect({ list, add, remove, clear }: { list: ListState; add: (id:
       <section className="section list-layout" id="liste">
         <div className="list-panel">
           <div className="list-panel-head"><div><span className="kicker">MA LISTE</span><h2>{count ? `${count} produit${count > 1 ? 's' : ''} à vérifier` : 'Votre liste est vide'}</h2></div>{count > 0 && <button className="clear-button" onClick={clear}>Vider</button>}</div>
-          {selected.length ? <div className="list-items">{selected.map(product => <div className="list-item" key={product.id}><img src={product.image} alt="" /><div className="list-copy"><strong>{product.name}</strong><span>{product.status}</span></div><div className="qty-control"><button onClick={() => remove(product.id)} aria-label={`Retirer un ${product.name}`}><Minus size={16} /></button><b>{list[product.id]}</b><button onClick={() => add(product.id)} aria-label={`Ajouter un ${product.name}`}><Plus size={16} /></button></div></div>)}</div> : <div className="empty-list"><ShoppingBag size={32} /><p>Commencez par ajouter les produits que vous souhaitez trouver ou réserver.</p><Link className="button button-dark" to="/produits">Explorer les produits</Link></div>}
+          {selected.length ? <div className="list-items">{selected.map(product => <div className="list-item" key={product.id}><img src={product.image} alt="" loading="lazy" decoding="async" onError={handleImageError} /><div className="list-copy"><strong>{product.name}</strong><span>{product.status}</span></div><div className="qty-control"><button onClick={() => remove(product.id)} aria-label={`Retirer un ${product.name}`}><Minus size={16} /></button><b>{list[product.id]}</b><button onClick={() => add(product.id)} aria-label={`Ajouter un ${product.name}`}><Plus size={16} /></button></div></div>)}</div> : <div className="empty-list"><ShoppingBag size={32} /><p>Commencez par ajouter les produits que vous souhaitez trouver ou réserver.</p><Link className="button button-dark" to="/produits">Explorer les produits</Link></div>}
         </div>
 
         <aside className="confirmation-card">
