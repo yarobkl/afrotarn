@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const TAB_ROUTES = ['/', '/produits', '/click-collect'] as const
-const EDGE_GUARD = 28
-const INTENT_DISTANCE = 10
-const NAV_DISTANCE = 68
-const AXIS_RATIO = 1.25
-const MAX_DRAG = 54
+const EDGE_GUARD = 22
+const INTENT_DISTANCE = 7
+const AXIS_RATIO = 1.12
+const COMMIT_DISTANCE = 46
+const COMMIT_VELOCITY = 0.42
 
 function normalizedTab(pathname: string) {
   if (pathname === '/') return '/'
@@ -22,122 +22,244 @@ function shouldIgnoreTarget(target: EventTarget | null) {
   ))
 }
 
+type Gesture = {
+  x: number
+  y: number
+  time: number
+  active: boolean
+  horizontal: boolean
+  cancelled: boolean
+  pointerId: number | null
+}
+
 export default function SwipeNavigator() {
   const location = useLocation()
   const navigate = useNavigate()
-  const start = useRef({ x: 0, y: 0, active: false, horizontal: false, cancelled: false })
+  const gesture = useRef<Gesture>({
+    x: 0,
+    y: 0,
+    time: 0,
+    active: false,
+    horizontal: false,
+    cancelled: false,
+    pointerId: null,
+  })
   const frame = useRef<number | null>(null)
+  const settleTimer = useRef<number | null>(null)
 
   useEffect(() => {
+    const html = document.documentElement
     const isMobile = () => window.matchMedia('(max-width: 820px)').matches
 
-    const clearDrag = () => {
+    const cancelFrame = () => {
       if (frame.current !== null) cancelAnimationFrame(frame.current)
       frame.current = null
-      document.documentElement.classList.remove('is-tab-swiping')
-      document.documentElement.style.removeProperty('--swipe-drag-x')
     }
 
-    const onTouchStart = (event: TouchEvent) => {
-      if (!isMobile() || event.touches.length !== 1 || shouldIgnoreTarget(event.target)) return
-      if (document.querySelector('.mobile-menu-button[aria-expanded="true"]')) return
+    const clearVisualState = () => {
+      cancelFrame()
+      if (settleTimer.current !== null) window.clearTimeout(settleTimer.current)
+      settleTimer.current = null
+      html.classList.remove('is-tab-swiping', 'is-tab-snapping', 'is-tab-committing')
+      html.style.removeProperty('--swipe-drag-x')
+      html.style.removeProperty('--swipe-progress')
+      html.style.removeProperty('--swipe-commit-x')
+      delete html.dataset.swipeDirection
+    }
 
-      const touch = event.touches[0]
-      if (touch.clientX < EDGE_GUARD) return // keep iOS back gesture untouched
+    const currentIndex = () => {
+      const current = normalizedTab(location.pathname)
+      return current ? TAB_ROUTES.indexOf(current) : -1
+    }
 
-      start.current = {
-        x: touch.clientX,
-        y: touch.clientY,
+    const nextIndexForDx = (dx: number) => {
+      const index = currentIndex()
+      if (index < 0) return -1
+      return dx < 0 ? index + 1 : index - 1
+    }
+
+    const applyDrag = (rawDx: number) => {
+      const index = currentIndex()
+      if (index < 0) return
+      const atStart = index === 0 && rawDx > 0
+      const atEnd = index === TAB_ROUTES.length - 1 && rawDx < 0
+      const resistance = atStart || atEnd ? 0.2 : 0.94
+      const width = Math.max(window.innerWidth, 320)
+      const translated = Math.max(-width * 0.94, Math.min(width * 0.94, rawDx * resistance))
+      const progress = Math.min(1, Math.abs(translated) / width)
+
+      cancelFrame()
+      frame.current = requestAnimationFrame(() => {
+        html.classList.add('is-tab-swiping')
+        html.classList.remove('is-tab-snapping', 'is-tab-committing')
+        html.style.setProperty('--swipe-drag-x', `${translated}px`)
+        html.style.setProperty('--swipe-progress', String(progress))
+        html.dataset.swipeDirection = rawDx < 0 ? 'forward' : 'back'
+      })
+    }
+
+    const snapBack = () => {
+      html.classList.remove('is-tab-swiping', 'is-tab-committing')
+      html.classList.add('is-tab-snapping')
+      html.style.setProperty('--swipe-drag-x', '0px')
+      settleTimer.current = window.setTimeout(clearVisualState, 240)
+    }
+
+    const commit = (dx: number) => {
+      const nextIndex = nextIndexForDx(dx)
+      if (nextIndex < 0 || nextIndex >= TAB_ROUTES.length) {
+        snapBack()
+        return
+      }
+
+      const direction = dx < 0 ? 'forward' : 'back'
+      const destination = dx < 0 ? -window.innerWidth : window.innerWidth
+      html.classList.remove('is-tab-swiping', 'is-tab-snapping')
+      html.classList.add('is-tab-committing')
+      html.style.setProperty('--swipe-commit-x', `${destination}px`)
+      html.dataset.swipeDirection = direction
+
+      settleTimer.current = window.setTimeout(() => {
+        html.classList.remove('is-tab-committing')
+        html.style.removeProperty('--swipe-drag-x')
+        html.style.removeProperty('--swipe-progress')
+        html.style.removeProperty('--swipe-commit-x')
+        html.dataset.tabSwipe = direction
+        delete html.dataset.swipeDirection
+        navigate(TAB_ROUTES[nextIndex])
+
+        settleTimer.current = window.setTimeout(() => {
+          delete html.dataset.tabSwipe
+          settleTimer.current = null
+        }, 360)
+      }, 155)
+    }
+
+    const begin = (x: number, y: number, pointerId: number | null, target: EventTarget | null) => {
+      if (!isMobile() || shouldIgnoreTarget(target) || normalizedTab(location.pathname) === null) return false
+      if (document.querySelector('.mobile-menu-button[aria-expanded="true"]')) return false
+      if (x < EDGE_GUARD) return false // preserve Safari's back-swipe area
+
+      clearVisualState()
+      gesture.current = {
+        x,
+        y,
+        time: performance.now(),
         active: true,
         horizontal: false,
         cancelled: false,
+        pointerId,
       }
+      return true
     }
 
-    const onTouchMove = (event: TouchEvent) => {
-      if (!start.current.active || start.current.cancelled || event.touches.length !== 1) return
-      const touch = event.touches[0]
-      const dx = touch.clientX - start.current.x
-      const dy = touch.clientY - start.current.y
+    const move = (x: number, y: number, prevent: () => void) => {
+      const state = gesture.current
+      if (!state.active || state.cancelled) return
+      const dx = x - state.x
+      const dy = y - state.y
       const ax = Math.abs(dx)
       const ay = Math.abs(dy)
 
-      if (!start.current.horizontal) {
+      if (!state.horizontal) {
         if (ax < INTENT_DISTANCE && ay < INTENT_DISTANCE) return
         if (ay > ax) {
-          start.current.cancelled = true
-          clearDrag()
+          state.cancelled = true
+          snapBack()
           return
         }
         if (ax < ay * AXIS_RATIO) return
-        start.current.horizontal = true
+        state.horizontal = true
       }
 
-      if (!start.current.horizontal) return
-      event.preventDefault()
+      prevent()
+      applyDrag(dx)
+    }
 
-      const current = normalizedTab(location.pathname)
-      if (!current) return
-      const index = TAB_ROUTES.indexOf(current)
-      const atStart = index === 0 && dx > 0
-      const atEnd = index === TAB_ROUTES.length - 1 && dx < 0
-      const resistance = atStart || atEnd ? 0.18 : 0.48
-      const translated = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, dx * resistance))
+    const end = (x: number, y: number) => {
+      const state = gesture.current
+      if (!state.active) return
 
-      if (frame.current !== null) cancelAnimationFrame(frame.current)
-      frame.current = requestAnimationFrame(() => {
-        document.documentElement.classList.add('is-tab-swiping')
-        document.documentElement.style.setProperty('--swipe-drag-x', `${translated}px`)
-      })
+      const dx = x - state.x
+      const dy = y - state.y
+      const elapsed = Math.max(16, performance.now() - state.time)
+      const velocity = dx / elapsed
+      const horizontal = state.horizontal && !state.cancelled
+
+      state.active = false
+      state.horizontal = false
+      state.pointerId = null
+
+      if (!horizontal || Math.abs(dx) < Math.abs(dy) * AXIS_RATIO) {
+        snapBack()
+        return
+      }
+
+      const enoughDistance = Math.abs(dx) >= Math.min(COMMIT_DISTANCE, window.innerWidth * 0.14)
+      const enoughVelocity = Math.abs(velocity) >= COMMIT_VELOCITY
+      if (enoughDistance || enoughVelocity) commit(dx)
+      else snapBack()
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch' || !event.isPrimary) return
+      begin(event.clientX, event.clientY, event.pointerId, event.target)
+    }
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!gesture.current.active || gesture.current.pointerId !== event.pointerId) return
+      move(event.clientX, event.clientY, () => event.preventDefault())
+    }
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (!gesture.current.active || gesture.current.pointerId !== event.pointerId) return
+      end(event.clientX, event.clientY)
+    }
+
+    const onPointerCancel = (event: PointerEvent) => {
+      if (gesture.current.pointerId !== event.pointerId) return
+      gesture.current.active = false
+      gesture.current.cancelled = true
+      snapBack()
+    }
+
+    const supportsPointer = 'PointerEvent' in window
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (supportsPointer || event.touches.length !== 1) return
+      const touch = event.touches[0]
+      begin(touch.clientX, touch.clientY, null, event.target)
+    }
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (supportsPointer || !gesture.current.active || event.touches.length !== 1) return
+      const touch = event.touches[0]
+      move(touch.clientX, touch.clientY, () => event.preventDefault())
     }
 
     const onTouchEnd = (event: TouchEvent) => {
-      if (!start.current.active) return
-      const wasHorizontal = start.current.horizontal && !start.current.cancelled
+      if (supportsPointer || !gesture.current.active) return
       const touch = event.changedTouches[0]
-      const dx = touch ? touch.clientX - start.current.x : 0
-      const dy = touch ? touch.clientY - start.current.y : 0
-      start.current.active = false
-      start.current.horizontal = false
-      clearDrag()
-
-      if (!wasHorizontal || Math.abs(dx) < NAV_DISTANCE || Math.abs(dx) < Math.abs(dy) * AXIS_RATIO) return
-
-      const current = normalizedTab(location.pathname)
-      if (!current) return
-      const index = TAB_ROUTES.indexOf(current)
-      const nextIndex = dx < 0 ? index + 1 : index - 1
-      if (nextIndex < 0 || nextIndex >= TAB_ROUTES.length) return
-
-      const direction = dx < 0 ? 'forward' : 'back'
-      navigate(TAB_ROUTES[nextIndex])
-
-      requestAnimationFrame(() => {
-        document.documentElement.dataset.tabSwipe = direction
-        window.setTimeout(() => {
-          delete document.documentElement.dataset.tabSwipe
-        }, 380)
-      })
+      end(touch?.clientX ?? gesture.current.x, touch?.clientY ?? gesture.current.y)
     }
 
-    const onTouchCancel = () => {
-      start.current.active = false
-      start.current.horizontal = false
-      start.current.cancelled = true
-      clearDrag()
-    }
-
-    document.addEventListener('touchstart', onTouchStart, { passive: true })
-    document.addEventListener('touchmove', onTouchMove, { passive: false })
-    document.addEventListener('touchend', onTouchEnd, { passive: true })
-    document.addEventListener('touchcancel', onTouchCancel, { passive: true })
+    document.addEventListener('pointerdown', onPointerDown, { passive: true, capture: true })
+    document.addEventListener('pointermove', onPointerMove, { passive: false, capture: true })
+    document.addEventListener('pointerup', onPointerUp, { passive: true, capture: true })
+    document.addEventListener('pointercancel', onPointerCancel, { passive: true, capture: true })
+    document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true, capture: true })
 
     return () => {
-      document.removeEventListener('touchstart', onTouchStart)
-      document.removeEventListener('touchmove', onTouchMove)
-      document.removeEventListener('touchend', onTouchEnd)
-      document.removeEventListener('touchcancel', onTouchCancel)
-      clearDrag()
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('pointermove', onPointerMove, true)
+      document.removeEventListener('pointerup', onPointerUp, true)
+      document.removeEventListener('pointercancel', onPointerCancel, true)
+      document.removeEventListener('touchstart', onTouchStart, true)
+      document.removeEventListener('touchmove', onTouchMove, true)
+      document.removeEventListener('touchend', onTouchEnd, true)
+      clearVisualState()
     }
   }, [location.pathname, navigate])
 
