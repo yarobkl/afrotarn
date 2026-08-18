@@ -7,6 +7,7 @@ import OrderConfirmation from './OrderConfirmation'
 import { CatalogRoute, ClickCollectRoute } from './CommerceRoutes'
 import { Cgv, Confidentialite, Cookies, MentionsLegales } from './LegalPages'
 import SiteLegalStrip from './SiteLegalStrip'
+import SeoManager from './SeoManager'
 import './styles.css'
 import './stability.css'
 import './payment-flow.css'
@@ -75,6 +76,7 @@ ReactDOM.createRoot(root).render(
         <AdminApp />
       ) : (
         <BrowserRouter>
+          <SeoManager />
           <Routes>
             <Route path="/produits" element={<CatalogRoute />} />
             <Route path="/click-collect" element={<ClickCollectRoute />} />
