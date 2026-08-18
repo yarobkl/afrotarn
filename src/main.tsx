@@ -5,12 +5,15 @@ import App from './App'
 import AdminApp from './AdminApp'
 import OrderConfirmation from './OrderConfirmation'
 import { CatalogRoute, ClickCollectRoute } from './CommerceRoutes'
+import { Cgv, Confidentialite, Cookies, MentionsLegales } from './LegalPages'
+import SiteLegalStrip from './SiteLegalStrip'
 import './styles.css'
 import './stability.css'
 import './payment-flow.css'
 import './error.css'
 import './mobile-dock-fix.css'
 import './home-live-commerce'
+import './site-contact-fix'
 
 type ErrorBoundaryState = { hasError: boolean }
 
@@ -76,8 +79,13 @@ ReactDOM.createRoot(root).render(
             <Route path="/produits" element={<CatalogRoute />} />
             <Route path="/click-collect" element={<ClickCollectRoute />} />
             <Route path="/commande/confirmee" element={<OrderConfirmation />} />
+            <Route path="/mentions-legales" element={<MentionsLegales />} />
+            <Route path="/cgv" element={<Cgv />} />
+            <Route path="/confidentialite" element={<Confidentialite />} />
+            <Route path="/cookies" element={<Cookies />} />
             <Route path="*" element={<App />} />
           </Routes>
+          <SiteLegalStrip />
         </BrowserRouter>
       )}
     </AppErrorBoundary>
