@@ -1,0 +1,36 @@
+/* Mobile tab swipe prototype — subtle, native-feeling, compositor only */
+@media(max-width:820px){
+  html.is-tab-swiping .page-stage,
+  html.is-tab-swiping .simple-cart-main{
+    transform:translate3d(var(--swipe-drag-x,0px),0,0);
+    transition:none!important;
+    will-change:transform;
+  }
+
+  html[data-tab-swipe="forward"] .page-stage,
+  html[data-tab-swipe="forward"] .simple-cart-main{
+    animation:afrotarn-tab-forward .34s cubic-bezier(.22,1,.36,1) both!important;
+  }
+
+  html[data-tab-swipe="back"] .page-stage,
+  html[data-tab-swipe="back"] .simple-cart-main{
+    animation:afrotarn-tab-back .34s cubic-bezier(.22,1,.36,1) both!important;
+  }
+
+  @keyframes afrotarn-tab-forward{
+    from{opacity:.72;transform:translate3d(24px,0,0)}
+    to{opacity:1;transform:translate3d(0,0,0)}
+  }
+
+  @keyframes afrotarn-tab-back{
+    from{opacity:.72;transform:translate3d(-24px,0,0)}
+    to{opacity:1;transform:translate3d(0,0,0)}
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  html[data-tab-swipe] .page-stage,
+  html[data-tab-swipe] .simple-cart-main{
+    animation:none!important;
+  }
+}
