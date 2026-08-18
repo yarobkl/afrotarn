@@ -4,7 +4,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import AdminApp from './AdminApp'
 import OrderConfirmation from './OrderConfirmation'
-import { CatalogRoute, ClickCollectRoute } from './CommerceRoutes'
+import { CatalogRoute } from './CommerceRoutes'
+import CartRoute from './CartRoute'
 import { Cgv, Confidentialite, Cookies, MentionsLegales } from './LegalPages'
 import SiteLegalStrip from './SiteLegalStrip'
 import SeoManager from './SeoManager'
@@ -15,6 +16,7 @@ import './error.css'
 import './mobile-dock-fix.css'
 import './home-live-commerce'
 import './site-contact-fix'
+import './cart-terminology'
 
 type ErrorBoundaryState = { hasError: boolean }
 
@@ -79,7 +81,7 @@ ReactDOM.createRoot(root).render(
           <SeoManager />
           <Routes>
             <Route path="/produits" element={<CatalogRoute />} />
-            <Route path="/click-collect" element={<ClickCollectRoute />} />
+            <Route path="/click-collect" element={<CartRoute />} />
             <Route path="/commande/confirmee" element={<OrderConfirmation />} />
             <Route path="/mentions-legales" element={<MentionsLegales />} />
             <Route path="/cgv" element={<Cgv />} />
