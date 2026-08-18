@@ -9,6 +9,7 @@ import CartRoute from './CartRoute'
 import { Cgv, Confidentialite, Cookies, MentionsLegales } from './LegalPages'
 import SiteLegalStrip from './SiteLegalStrip'
 import SeoManager from './SeoManager'
+import SwipeNavigator from './SwipeNavigator'
 import './styles.css'
 import './stability.css'
 import './payment-flow.css'
@@ -18,6 +19,7 @@ import './home-live-commerce'
 import './site-contact-fix'
 import './cart-terminology'
 import './fluidity.css'
+import './swipe-navigation.css'
 
 type ErrorBoundaryState = { hasError: boolean }
 
@@ -80,6 +82,7 @@ ReactDOM.createRoot(root).render(
       ) : (
         <BrowserRouter>
           <SeoManager />
+          <SwipeNavigator />
           <Routes>
             <Route path="/produits" element={<CatalogRoute />} />
             <Route path="/click-collect" element={<CartRoute />} />
