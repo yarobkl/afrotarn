@@ -110,10 +110,10 @@ export default function CartRoute() {
 
     <main className="simple-cart-main">
       <section className="simple-cart-hero">
-        <span>RETRAIT EN BOUTIQUE</span>
-        <h1>Votre panier</h1>
-        <p>Vérifiez vos produits puis demandez leur préparation avant de venir chez AfroTarn.</p>
-        <div className="simple-cart-steps"><strong>1. Panier</strong><span>→</span><strong>2. Préparation</strong><span>→</span><strong>3. Retrait en boutique</strong></div>
+        <span>VOTRE MARCHÉ, DEPUIS CHEZ VOUS</span>
+        <h1>Votre marché commence ici.</h1>
+        <p>Faites votre marché depuis chez vous, choisissez tranquillement vos produits et venez simplement les récupérer chez AfroTarn.</p>
+        <div className="simple-cart-steps"><strong>1. Je choisis mes produits</strong><span>→</span><strong>2. AfroTarn prépare</strong><span>→</span><strong>3. Je récupère mon marché</strong></div>
       </section>
 
       <section className="simple-cart-layout">
@@ -130,14 +130,14 @@ export default function CartRoute() {
                 <div className="simple-cart-qty" aria-label={`Quantité ${product.name}`}><button onClick={() => change(product, -1)} aria-label={`Retirer un ${product.name}`}><Minus size={16} /></button><b>{qty}</b><button onClick={() => change(product, 1)} aria-label={`Ajouter un ${product.name}`}><Plus size={16} /></button></div>
               </article>
             })}
-          </div> : <div className="simple-cart-empty"><ShoppingBag size={34} /><h3>Votre panier est vide</h3><p>Ajoutez les produits qui vous intéressent avant de préparer votre retrait.</p><Link to="/produits">Voir les produits <ArrowRight size={17} /></Link></div>}
+          </div> : <div className="simple-cart-empty"><ShoppingBag size={34} /><h3>Votre panier est vide</h3><p>Ajoutez les produits qui vous intéressent avant de préparer votre retrait.</p><Link to="/produits">Faire mon marché <ArrowRight size={17} /></Link></div>}
         </div>
 
         <aside className="simple-cart-summary">
           <small>VOTRE RETRAIT</small>
           <h2>Préparer mon retrait</h2>
           <p>AfroTarn vérifie la disponibilité avant votre venue. Aucun paiement n’est effectué sur cette étape.</p>
-          {count > 0 ? <a className="simple-cart-primary" href={requestMailto}><Mail size={18} /> Préparer mon retrait</a> : <Link className="simple-cart-primary" to="/produits"><Search size={18} /> Ajouter des produits</Link>}
+          {count > 0 ? <a className="simple-cart-primary" href={requestMailto}><Mail size={18} /> Préparer mon retrait</a> : <Link className="simple-cart-primary" to="/produits"><Search size={18} /> Faire mon marché</Link>}
           <a className="simple-cart-secondary" href={`tel:${SHOP_PHONE_HREF}`}><Phone size={18} /> {SHOP_PHONE}</a>
           <a className="simple-cart-secondary" href={SHOP_MAP}><MapPin size={18} /> Itinéraire boutique</a>
           <div className="simple-cart-reassurance"><Store size={18} /><span>Retrait au 70 rue du Château du Roi, 81600 Gaillac.</span></div>
