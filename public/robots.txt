@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /commande/confirmee
+
+Sitemap: https://afrotarn.vercel.app/sitemap.xml
