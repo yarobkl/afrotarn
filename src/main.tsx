@@ -17,6 +17,7 @@ import './mobile-dock-fix.css'
 import './home-live-commerce'
 import './site-contact-fix'
 import './cart-terminology'
+import './fluidity.css'
 
 type ErrorBoundaryState = { hasError: boolean }
 
