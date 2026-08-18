@@ -1,5 +1,5 @@
-const OLD_EMAIL = 'afrotarn@gmail.com'
-const CONTACT_EMAIL = 'eliebakala@gmail.com'
+const OLD_EMAIL = 'eliebakala@gmail.com'
+const CONTACT_EMAIL = 'afrotarn@gmail.com'
 
 function syncContactEmail() {
   document.querySelectorAll<HTMLAnchorElement>(`a[href="mailto:${OLD_EMAIL}"]`).forEach(link => {
