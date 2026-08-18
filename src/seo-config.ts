@@ -12,7 +12,7 @@ export const SEO_CONFIG = {
     siret: '92174202900017',
     vatId: 'FR54921742029',
     telephone: '+33607077158',
-    email: 'eliebakala@gmail.com',
+    email: 'afrotarn@gmail.com',
     streetAddress: '70 rue du Château du Roi',
     postalCode: '81600',
     addressLocality: 'Gaillac',
@@ -41,8 +41,8 @@ export const SEO_ROUTES: Record<string, SeoRoute> = {
     index: true,
   },
   '/click-collect': {
-    title: 'Préparer un retrait à Gaillac | AfroTarn',
-    description: 'Préparez votre sélection de produits AfroTarn avant votre passage en boutique au 70 rue du Château du Roi à Gaillac.',
+    title: 'Panier et retrait à Gaillac | AfroTarn',
+    description: 'Ajoutez vos produits au panier puis demandez leur préparation avant votre retrait chez AfroTarn au 70 rue du Château du Roi à Gaillac.',
     index: true,
   },
   '/mentions-legales': {
